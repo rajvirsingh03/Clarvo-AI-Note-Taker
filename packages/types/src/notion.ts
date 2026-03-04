@@ -21,6 +21,7 @@ export type NotionBlockType =
   | 'equation'
   | 'image'
   | 'divider'
+  | 'to_do'
   | 'toggle'
 
 export interface NotionBlock {

@@ -1,5 +1,4 @@
-import type { NotionBlock } from '@clarvo/types'
-import type { Flashcard } from '@clarvo/types'
+import type { NotionBlock, NotionBlockType } from '@clarvo/types'
 
 interface FormatOptions {
   flashcards?: Array<{ front: string; back: string }>
@@ -134,7 +133,7 @@ export function formatNotionBlocks(notes: string, options: FormatOptions = {}): 
 }
 
 /** Create a simple rich text block for headings, paragraphs, lists */
-function createRichTextBlock(type: string, text: string): NotionBlock {
+function createRichTextBlock(type: NotionBlockType, text: string): NotionBlock {
   return {
     type,
     [type]: {

@@ -30,7 +30,8 @@ export const BILLING_PLANS: Record<BillingTier, BillingPlan> = {
     tier: 'PRO',
     name: 'Clarvo Pro',
     price: 12,  // $12/month
-    stripePriceId: process.env['NEXT_PUBLIC_STRIPE_PRO_PRICE_ID'] ?? 'price_placeholder',
+    // Set via NEXT_PUBLIC_STRIPE_PRO_PRICE_ID env var at runtime
+    stripePriceId: '',  // populated at runtime
     limits: PRO_TIER_LIMITS,
   },
 }
