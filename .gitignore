@@ -1,0 +1,56 @@
+# === Dependencies ===
+node_modules/
+.pnp
+.pnp.js
+
+# === Build outputs ===
+.next/
+.open-next/
+.wrangler/
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# === Plasmo extension builds ===
+apps/extension/build/
+apps/extension/.plasmo/
+
+# === Environment variables ===
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# === Supabase ===
+supabase/.branches/
+supabase/functions/.netlify/
+
+# === Turborepo ===
+.turbo/
+
+# === Testing ===
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# === OS / Editor ===
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+# === Logs ===
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# === Misc ===
+.vercel
+.netlify

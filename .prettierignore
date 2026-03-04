@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.open-next/
+.wrangler/
+dist/
+build/
+out/
+coverage/
+pnpm-lock.yaml
+*.tsbuildinfo
+apps/extension/build/
+apps/extension/.plasmo/
