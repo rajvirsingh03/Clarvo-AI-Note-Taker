@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "clarvo-ai-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-03-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "NEXT_PUBLIC_APP_NAME": "Clarvo AI"
+  }
+  // NOTE: Secrets (API keys) must be added via Cloudflare dashboard or wrangler secret put
+  // wrangler secret put GEMINI_API_KEY
+  // wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+  // wrangler secret put DEEPGRAM_API_KEY
+  // wrangler secret put NOTION_CLIENT_SECRET
+  // wrangler secret put STRIPE_SECRET_KEY
+}

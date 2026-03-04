@@ -1,0 +1,5 @@
+{
+  "extends": "@clarvo/tsconfig/react-lib.json",
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
