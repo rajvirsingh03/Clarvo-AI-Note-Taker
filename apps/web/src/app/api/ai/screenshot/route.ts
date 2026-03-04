@@ -53,16 +53,16 @@ export async function POST(request: Request) {
 
     const { sessionId, imageDataUrl, audioContext } = parsed.data
     const base64 = screenshotToBase64(imageDataUrl)
-    const caption = await analyzeScreenshot(base64, audioContext)
+    const analysis = await analyzeScreenshot(base64, audioContext)
 
-    // Store screenshot metadata (actual image stored in Supabase Storage separately)
+    // Store screenshot in Supabase (base64 data URL + Gemini vision analysis)
     await supabase.from('screenshots').insert({
       session_id: sessionId,
-      storage_path: '', // populated after Supabase Storage upload
-      caption,
+      data_url: imageDataUrl,
+      analysis,
     })
 
-    return NextResponse.json({ success: true, caption })
+    return NextResponse.json({ success: true, analysis })
   } catch (error) {
     console.error('[/api/ai/screenshot]', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

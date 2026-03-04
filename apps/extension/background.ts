@@ -26,7 +26,6 @@ import type {
 } from '@clarvo/types'
 
 const WEB_APP_URL = process.env.PLASMO_PUBLIC_WEB_APP_URL ?? 'http://localhost:3000'
-const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY ?? ''
 const EXTRACTION_INTERVAL_MS = 3 * 60 * 1000  // 3 minutes
 const INACTIVITY_TIMEOUT_MS  = 5 * 60 * 1000  // 5 minutes
 

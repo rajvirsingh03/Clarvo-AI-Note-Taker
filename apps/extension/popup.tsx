@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ExtensionSessionState } from '@clarvo/types'
 import './style.css'
 

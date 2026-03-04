@@ -2,7 +2,7 @@ import type { NotionBlock, NotionBlockType } from '@clarvo/types'
 
 interface FormatOptions {
   flashcards?: Array<{ front: string; back: string }>
-  screenshots?: Array<{ caption: string | null; storage_path: string }>
+  screenshots?: Array<{ analysis: string | null; data_url: string }>
 }
 
 /**
@@ -112,16 +112,16 @@ export function formatNotionBlocks(notes: string, options: FormatOptions = {}): 
 
   // Append screenshots section if provided
   if (options.screenshots && options.screenshots.length > 0) {
-    const captionedScreenshots = options.screenshots.filter((s) => s.caption)
-    if (captionedScreenshots.length > 0) {
+    const withAnalysis = options.screenshots.filter((s) => s.analysis)
+    if (withAnalysis.length > 0) {
       blocks.push({ type: 'divider', divider: {} })
-      blocks.push(createRichTextBlock('heading_2', '📸 Screenshots'))
+      blocks.push(createRichTextBlock('heading_2', '\uD83D\uDCF8 Screenshots'))
 
-      for (const screenshot of captionedScreenshots) {
+      for (const screenshot of withAnalysis) {
         blocks.push({
           type: 'callout',
           callout: {
-            rich_text: parseInlineMarkdown(screenshot.caption!),
+            rich_text: parseInlineMarkdown(screenshot.analysis!),
             icon: { type: 'emoji', emoji: '🖼️' },
           },
         })

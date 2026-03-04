@@ -1,7 +1,5 @@
 'use client'
 
-import React from 'react'
-
 export interface NoteCanvasProps {
   /** Markdown content to render */
   content: string

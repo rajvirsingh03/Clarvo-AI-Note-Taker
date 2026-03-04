@@ -33,10 +33,6 @@ function sendMessage<T>(msg: ExtensionMessage<T>): void {
   chrome.runtime.sendMessage(msg)
 }
 
-function isVideoPlayable(video: HTMLVideoElement): boolean {
-  return video.readyState >= 2 && !video.paused && video.duration > 0
-}
-
 // ── Overlay Injection ────────────────────────────────────────────────────────
 
 function createOverlayButton(video: HTMLVideoElement): HTMLButtonElement {

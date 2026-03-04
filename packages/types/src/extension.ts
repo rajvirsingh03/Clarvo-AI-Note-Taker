@@ -24,6 +24,8 @@ export type ExtensionMessageType =
   | 'EXPORT_NOTION_RESULT'
   | 'ERROR'
   | 'INACTIVITY_WARNING'
+  | 'START_AUDIO_CAPTURE'
+  | 'STOP_AUDIO_CAPTURE'
 
 export interface ExtensionMessage<T = unknown> {
   type: ExtensionMessageType

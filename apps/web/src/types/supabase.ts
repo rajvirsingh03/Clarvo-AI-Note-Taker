@@ -12,42 +12,115 @@ export type Database = {
           full_name: string | null
           avatar_url: string | null
           billing_tier: 'FREE' | 'PRO'
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           notion_access_token: string | null
           notion_workspace_id: string | null
+          notion_workspace_name: string | null
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['users']['Row'], 'created_at' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['users']['Insert']>
+        Insert: {
+          id: string
+          email: string
+          full_name?: string | null
+          avatar_url?: string | null
+          billing_tier?: 'FREE' | 'PRO'
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          notion_access_token?: string | null
+          notion_workspace_id?: string | null
+          notion_workspace_name?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string | null
+          avatar_url?: string | null
+          billing_tier?: 'FREE' | 'PRO'
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          notion_access_token?: string | null
+          notion_workspace_id?: string | null
+          notion_workspace_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       sessions: {
         Row: {
           id: string
           user_id: string
-          title: string | null
+          title: string
+          notes: string
+          state: 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
+          duration_seconds: number
+          notion_page_id: string | null
           video_url: string | null
           video_title: string | null
-          notes: string | null
-          state: 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
-          duration_seconds: number | null
-          notion_page_id: string | null
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['sessions']['Row'], 'created_at' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['sessions']['Insert']>
+        Insert: {
+          id?: string
+          user_id: string
+          title?: string
+          notes?: string
+          state?: 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
+          duration_seconds?: number
+          notion_page_id?: string | null
+          video_url?: string | null
+          video_title?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          notes?: string
+          state?: 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
+          duration_seconds?: number
+          notion_page_id?: string | null
+          video_url?: string | null
+          video_title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'sessions_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          }
+        ]
       }
       session_chunks: {
         Row: {
           id: string
           session_id: string
           transcript: string
-          extracted_notes: string | null
           chunk_index: number
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['session_chunks']['Row'], 'created_at'>
-        Update: Partial<Database['public']['Tables']['session_chunks']['Insert']>
+        Insert: {
+          id?: string
+          session_id: string
+          transcript: string
+          chunk_index: number
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          transcript?: string
+          chunk_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'session_chunks_session_id_fkey'
+            columns: ['session_id']
+            referencedRelation: 'sessions'
+            referencedColumns: ['id']
+          }
+        ]
       }
       flashcards: {
         Row: {
@@ -57,20 +130,55 @@ export type Database = {
           back: string
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['flashcards']['Row'], 'created_at'>
-        Update: Partial<Database['public']['Tables']['flashcards']['Insert']>
+        Insert: {
+          id?: string
+          session_id: string
+          front: string
+          back: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          front?: string
+          back?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'flashcards_session_id_fkey'
+            columns: ['session_id']
+            referencedRelation: 'sessions'
+            referencedColumns: ['id']
+          }
+        ]
       }
       screenshots: {
         Row: {
           id: string
           session_id: string
-          storage_path: string
-          caption: string | null
-          inserted_at_chunk: number | null
+          data_url: string
+          analysis: string | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['screenshots']['Row'], 'created_at'>
-        Update: Partial<Database['public']['Tables']['screenshots']['Insert']>
+        Insert: {
+          id?: string
+          session_id: string
+          data_url: string
+          analysis?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          data_url?: string
+          analysis?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'screenshots_session_id_fkey'
+            columns: ['session_id']
+            referencedRelation: 'sessions'
+            referencedColumns: ['id']
+          }
+        ]
       }
     }
     Views: Record<string, never>
@@ -79,5 +187,6 @@ export type Database = {
       billing_tier: 'FREE' | 'PRO'
       session_state: 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
     }
+    CompositeTypes: Record<string, never>
   }
 }

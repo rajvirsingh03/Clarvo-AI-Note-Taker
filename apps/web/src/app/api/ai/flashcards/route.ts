@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { generateFlashcards } from '@/lib/gemini'
-import { FREE_TIER_LIMITS } from '@clarvo/utils'
 import { z } from 'zod'
 
 const Schema = z.object({

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { extractConcepts } from '@/lib/gemini'
-import { chunkTranscript } from '@clarvo/utils'
 import { z } from 'zod'
 
 const ExtractSchema = z.object({
@@ -46,11 +45,10 @@ export async function POST(request: Request) {
     // Extract concepts via Gemini 1.5 Pro
     const extractedNotes = await extractConcepts(chunk, existingNotesTail)
 
-    // Store the chunk + extraction
+    // Store the chunk
     await supabase.from('session_chunks').insert({
       session_id: sessionId,
       transcript: chunk,
-      extracted_notes: extractedNotes,
       chunk_index: 0, // TODO: derive from existing chunk count
     })
 

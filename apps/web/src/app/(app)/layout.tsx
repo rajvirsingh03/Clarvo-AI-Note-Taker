@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
+import type { CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { DashboardSidebar } from '@/components/layout/DashboardSidebar'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -14,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
           cookiesToSet.forEach(({ name, value, options }) =>
             cookieStore.set(name, value, options)
           )
@@ -33,9 +34,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="app-shell">
-      <DashboardSidebar user={user} />
+      <DashboardSidebar />
       <div className="app-main">
-        <DashboardHeader user={user} />
+        <DashboardHeader userName={user.user_metadata?.['full_name'] ?? user.email ?? null} />
         <main id="main-content" className="app-content">
           {children}
         </main>

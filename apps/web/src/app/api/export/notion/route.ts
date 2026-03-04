@@ -39,12 +39,20 @@ export async function POST(request: Request) {
 
     const { sessionId, notionDatabaseId } = parsed.data
 
+    type SessionWithRelations = {
+      id: string
+      title: string
+      notes: string
+      flashcards: Array<{ front: string; back: string }>
+      screenshots: Array<{ analysis: string | null; data_url: string }>
+    }
+
     const { data: session } = await supabase
       .from('sessions')
-      .select('*, flashcards(*), screenshots(*)')
+      .select('id, title, notes, flashcards(front, back), screenshots(analysis, data_url)')
       .eq('id', sessionId)
       .eq('user_id', user.id)
-      .single()
+      .single() as { data: SessionWithRelations | null; error: unknown }
 
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
