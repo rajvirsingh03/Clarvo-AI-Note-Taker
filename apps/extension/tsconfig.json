@@ -1,11 +1,26 @@
 {
   "extends": "@clarvo/tsconfig/react-lib.json",
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "paths": {
-      "~*": ["./"]
+      "~*": [
+        "./"
+      ]
     }
   },
-  "include": ["src", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "build", ".plasmo"]
+  "include": [
+    ".plasmo/index.d.ts",
+    "src",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    ".plasmo"
+  ]
 }

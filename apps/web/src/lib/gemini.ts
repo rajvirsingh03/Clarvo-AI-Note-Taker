@@ -10,21 +10,21 @@ const SAFETY_SETTINGS = [
 ]
 
 /**
- * Get the primary Gemini 1.5 Pro model for text tasks
+ * Get the primary Gemini 2.5 Flash-Lite model for text tasks
  */
 export function getGeminiPro() {
   return genAI.getGenerativeModel({
-    model: 'gemini-1.5-pro',
+    model: 'gemini-2.5-flash-lite-preview-06-17',
     safetySettings: SAFETY_SETTINGS,
   })
 }
 
 /**
- * Get the Gemini 1.5 Pro Vision model for multimodal tasks (screenshots)
+ * Get the Gemini 2.5 Flash-Lite model for multimodal tasks (screenshots)
  */
 export function getGeminiProVision() {
   return genAI.getGenerativeModel({
-    model: 'gemini-1.5-pro',
+    model: 'gemini-2.5-flash-lite-preview-06-17',
     safetySettings: SAFETY_SETTINGS,
   })
 }

@@ -66,14 +66,20 @@ function broadcastToSidePanel(msg: ExtensionMessage<unknown>): void {
   })
 }
 
+const AUTH_TOKEN_KEY = 'clarvoAuthToken'
+
 async function getUserAuthToken(): Promise<string | null> {
-  const result = await chrome.storage.session.get('clarvoAuthToken')
-  return (result['clarvoAuthToken'] as string) ?? null
+  // Token is written to local storage by the popup (lib/supabase.ts syncTokenToStorage)
+  const result = await chrome.storage.local.get(AUTH_TOKEN_KEY)
+  return (result[AUTH_TOKEN_KEY] as string) ?? null
 }
 
 // ── Session Lifecycle ────────────────────────────────────────────────────────
 
-async function startSession(payload: { videoSrc: string; pageTitle: string; pageUrl: string }): Promise<void> {
+async function startSession(
+  payload: { videoSrc: string; pageTitle: string; pageUrl: string },
+  tabId?: number
+): Promise<void> {
   const token = await getUserAuthToken()
   if (!token) {
     broadcastToSidePanel({
@@ -114,6 +120,15 @@ async function startSession(payload: { videoSrc: string; pageTitle: string; page
   })
 
   broadcastToSidePanel({ type: 'SESSION_STATE_CHANGED', payload: { sessionId: session.id, previousState: null, newState: 'RECORDING' as SessionState }, timestamp: Date.now() })
+
+  // Open the side panel so the user sees notes immediately
+  if (tabId !== undefined) {
+    try {
+      await (chrome.sidePanel as unknown as { open: (opts: { tabId: number }) => Promise<void> }).open({ tabId })
+    } catch {
+      // sidePanel.open may fail if the tab is not focused; non-fatal
+    }
+  }
 
   // Start offscreen audio capture
   await ensureOffscreenDocument()
@@ -229,7 +244,10 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage<unknown>, _sende
 
   switch (message.type) {
     case 'START_SESSION':
-      startSession(message.payload as { videoSrc: string; pageTitle: string; pageUrl: string })
+      startSession(
+        message.payload as { videoSrc: string; pageTitle: string; pageUrl: string },
+        _sender.tab?.id
+      )
         .then(() => sendResponse({ ok: true }))
         .catch((err) => sendResponse({ ok: false, error: String(err) }))
       return true  // Keep channel open for async

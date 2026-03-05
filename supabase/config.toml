@@ -1,5 +1,6 @@
 # Supabase local config — supabase start uses this
-project_id = "clarvo-ai"
+# Remote project: https://supabase.com/dashboard/project/ouincawztxujtubdtosq
+project_id = "ouincawztxujtubdtosq"
 
 [api]
 port = 54321
