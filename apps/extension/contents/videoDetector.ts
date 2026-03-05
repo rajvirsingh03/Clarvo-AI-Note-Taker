@@ -85,7 +85,7 @@ function createOverlayButton(video: HTMLVideoElement): HTMLButtonElement {
 
   Object.assign(btn.style, {
     position: 'absolute',
-    bottom: '72px',
+    top: '12px',
     left: '12px',
     zIndex: '9999',
     padding: '8px 16px',
@@ -147,18 +147,40 @@ function createOverlayButton(video: HTMLVideoElement): HTMLButtonElement {
   return btn
 }
 
+/**
+ * Find the best container to inject the overlay button into.
+ *
+ * YouTube: the <video> lives inside .html5-video-container which has height:0
+ * (intrinsic sizing from the video frame). The #movie_player above it has the
+ * correct dimensions but overflow:hidden — we must inject there.
+ *
+ * Other sites: walk up until we find a container that is visibly sized.
+ */
+function findInjectionContainer(video: HTMLVideoElement): HTMLElement {
+  // YouTube-specific: use the outer player wrapper
+  const youtubePlayer = video.closest<HTMLElement>('#movie_player, .html5-video-player')
+  if (youtubePlayer) return youtubePlayer
+
+  // Generic fallback: walk up until we find a positioned, non-zero-height parent
+  let el: HTMLElement | null = video.parentElement
+  while (el && el !== document.body) {
+    const style = getComputedStyle(el)
+    if (el.offsetHeight > 10 && style.position !== 'static') return el
+    el = el.parentElement
+  }
+
+  // Last resort: ensure the direct parent is positioned
+  const parent = video.parentElement ?? document.body
+  if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative'
+  return parent
+}
+
 function injectOverlay(video: HTMLVideoElement): void {
   if (video.dataset['clarvoInjected']) return
 
-  // Ensure parent is positioned so absolute overlay works
-  const parent = video.parentElement
-  if (parent) {
-    const pos = getComputedStyle(parent).position
-    if (pos === 'static') parent.style.position = 'relative'
-  }
-
+  const container = findInjectionContainer(video)
   overlayButton = createOverlayButton(video)
-  video.parentElement?.appendChild(overlayButton)
+  container.appendChild(overlayButton)
   video.dataset['clarvoInjected'] = 'true'
 }
 

@@ -8,9 +8,15 @@
  *
  * Flow:
  *   1. User signs in on the web app → Supabase writes session to page localStorage
- *   2. This script detects it (on load + via Window storage event)
- *   3. Tokens are written to chrome.storage.local under clarvoAuthToken / clarvoRefreshToken
+ *   2. This script detects it (on load + via polling every 1.5s)
+ *   3. Tokens written to chrome.storage.local under clarvoAuthToken / clarvoRefreshToken
  *   4. Extension popup → bootstrapAuth() → supabase.auth.setSession() → ✅ signed in
+ *
+ * Also responds to REQUEST_SESSION messages from the popup so it can
+ * proactively pull a fresh session without relying on passive storage events.
+ *
+ * NOTE: window.addEventListener('storage') does NOT fire for same-tab writes.
+ * Supabase writes its session from the same tab, so we poll every 1.5s instead.
  */
 
 import type { PlasmoCSConfig } from 'plasmo'
@@ -30,11 +36,17 @@ const ACCESS_KEY  = 'clarvoAuthToken'
 const REFRESH_KEY = 'clarvoRefreshToken'
 const USER_KEY    = 'clarvoUser'
 
+type RawSession = {
+  access_token: string
+  refresh_token: string
+  user?: { id: string; email?: string }
+}
+
 /**
- * Scan window.localStorage for a Supabase auth token
- * (key pattern: sb-<project-ref>-auth-token)
+ * Scan window.localStorage for a Supabase auth session.
+ * Key pattern: sb-<project-ref>-auth-token
  */
-function findSupabaseSession(): { access_token: string; refresh_token: string; user?: { id: string; email?: string } } | null {
+function findSupabaseSession(): RawSession | null {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
@@ -52,36 +64,57 @@ function findSupabaseSession(): { access_token: string; refresh_token: string; u
       }
     }
   } catch {
-    // localStorage may be inaccessible (should not happen for content scripts)
+    // localStorage inaccessible
   }
   return null
 }
 
-function syncToExtension(): void {
-  const session = findSupabaseSession()
+function syncToExtension(session: RawSession | null): void {
   if (session) {
     chrome.storage.local.set({
       [ACCESS_KEY]: session.access_token,
       [REFRESH_KEY]: session.refresh_token,
-      [USER_KEY]: {
-        id:    session.user?.id    ?? '',
-        email: session.user?.email ?? '',
-      },
+      [USER_KEY]: { id: session.user?.id ?? '', email: session.user?.email ?? '' },
     })
-    console.debug('[Clarvo authBridge] Session synced to extension storage.')
+    console.debug('[Clarvo authBridge] ✅ Session synced.')
   } else {
-    // User signed out — clear extension storage too
     chrome.storage.local.remove([ACCESS_KEY, REFRESH_KEY, USER_KEY])
-    console.debug('[Clarvo authBridge] No session found — cleared extension storage.')
+    console.debug('[Clarvo authBridge] ❌ No session — storage cleared.')
   }
 }
 
-// ── Initial sync ─────────────────────────────────────────────────
-syncToExtension()
+// ── Initial sync immediately when content script loads ───────────────────────
+let lastToken = ''
+const initial = findSupabaseSession()
+lastToken = initial?.access_token ?? ''
+syncToExtension(initial)
 
-// ── Supabase writes session on SIGNED_IN, TOKEN_REFRESHED, SIGNED_OUT ──────
-window.addEventListener('storage', (e) => {
-  if (e.key?.startsWith('sb-') && e.key?.endsWith('-auth-token')) {
-    syncToExtension()
+// ── Poll for auth state changes every 1.5s ────────────────────────────────────
+// Supabase writes to localStorage from the same tab so window.storage event
+// never fires for it. Polling is the only reliable way to detect the change.
+const authPoller = setInterval(() => {
+  const s = findSupabaseSession()
+  const token = s?.access_token ?? ''
+  if (token !== lastToken) {
+    lastToken = token
+    syncToExtension(s)
+  }
+}, 1500)
+
+window.addEventListener('beforeunload', () => clearInterval(authPoller))
+
+// ── Respond to REQUEST_SESSION from popup / background SW ────────────────────
+chrome.runtime.onMessage.addListener((msg: { type?: string }, _sender, sendResponse) => {
+  if (msg?.type === 'REQUEST_SESSION') {
+    const s = findSupabaseSession()
+    syncToExtension(s)
+    sendResponse({
+      ok:            !!s,
+      access_token:  s?.access_token  ?? null,
+      refresh_token: s?.refresh_token ?? null,
+      user:          s?.user          ?? null,
+    })
+    return true
   }
 })
+

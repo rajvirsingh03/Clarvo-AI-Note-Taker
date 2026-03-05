@@ -15,6 +15,20 @@ function Popup() {
 
   // ── Auth bootstrap ──────────────────────────────────────
   useEffect(() => {
+    // Step 1: ask all open web-app tabs to sync their session immediately
+    // (authBridge.ts runs on these tabs and responds to REQUEST_SESSION)
+    const WEB_ORIGINS = ['http://localhost:3000', 'https://clarvo.ai', 'https://app.clarvo.ai']
+    chrome.tabs.query({}, (tabs) => {
+      for (const tab of tabs) {
+        if (tab.id && tab.url && WEB_ORIGINS.some((o) => tab.url!.startsWith(o))) {
+          chrome.tabs.sendMessage(tab.id, { type: 'REQUEST_SESSION' }).catch(() => {
+            // Tab may not have authBridge yet — ignore
+          })
+        }
+      }
+    })
+
+    // Step 2: bootstrap from storage (works after authBridge has synced at least once)
     bootstrapAuth().then((s) => {
       setSession(s)
       setAuthState(s ? 'signed-in' : 'signed-out')
@@ -25,15 +39,13 @@ function Popup() {
       setSession(s)
       setAuthState(s ? 'signed-in' : 'signed-out')
       if (!s) {
-        // Clear session state when signed out
         setSessionState(null)
         await chrome.storage.local.remove('clarvoSession')
       }
     })
 
-    // ── Listen for token synced by the authBridge content script ──────────────
-    // When the user signs in on the web app tab, authBridge writes to chrome.storage.
-    // We detect that change here and re-bootstrap so the popup shows "signed-in" immediately.
+    // Step 3: listen for authBridge writing tokens into chrome.storage
+    // (fires when user signs in on the web app while popup is open)
     const onStorageChanged = (
       changes: Record<string, chrome.storage.StorageChange>,
       area: string
@@ -42,13 +54,11 @@ function Popup() {
       if (AUTH_TOKEN_KEY in changes) {
         const newToken = changes[AUTH_TOKEN_KEY]?.newValue as string | undefined
         if (newToken) {
-          // Token arrived from authBridge — restore full session
           bootstrapAuth().then((s) => {
             setSession(s)
             setAuthState(s ? 'signed-in' : 'signed-out')
           })
         } else {
-          // Token was cleared — user signed out on web app
           setSession(null)
           setAuthState('signed-out')
           setSessionState(null)
