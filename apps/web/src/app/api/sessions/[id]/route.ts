@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getAuthenticatedClient } from '@/lib/supabase/auth'
 import { z } from 'zod'
 
 interface RouteParams {
@@ -10,8 +10,7 @@ interface RouteParams {
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const { id } = await params
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { user, supabase } = await getAuthenticatedClient(_request)
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -34,15 +33,15 @@ export async function GET(_request: Request, { params }: RouteParams) {
 const UpdateSessionSchema = z.object({
   title: z.string().max(200).optional(),
   notes: z.string().optional(),
-  state: z.enum(['RECORDING', 'COMPLETED', 'POST_PROCESSING']).optional(),
+  state: z.enum(['RECORDING', 'PAUSED', 'COMPLETED', 'POST_PROCESSING']).optional(),
+  watch_time_seconds: z.number().int().min(0).optional(),
 })
 
 // PUT /api/sessions/[id]
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const { id } = await params
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { user, supabase } = await getAuthenticatedClient(request)
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -50,15 +49,33 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const parsed = UpdateSessionSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
+    // Build update payload (exclude watch_time_seconds from generic update)
+    const { watch_time_seconds, ...updateFields } = parsed.data
+    const updatePayload: Record<string, unknown> = { ...updateFields, updated_at: new Date().toISOString() }
+
+    // Include watch_time_seconds if provided
+    if (watch_time_seconds !== undefined) {
+      updatePayload.watch_time_seconds = watch_time_seconds
+    }
+
     const { data, error } = await supabase
       .from('sessions')
-      .update({ ...parsed.data, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()
       .single()
 
     if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    // When session completes with watch time, update user's free minutes balance
+    if (parsed.data.state === 'COMPLETED' && watch_time_seconds !== undefined && watch_time_seconds > 0) {
+      const watchMinutes = watch_time_seconds / 60.0
+      await supabase.rpc('increment_free_minutes', {
+        p_user_id: user.id,
+        p_minutes: watchMinutes,
+      })
+    }
 
     return NextResponse.json({ session: data })
   } catch (error) {
@@ -71,8 +88,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
     const { id } = await params
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { user, supabase } = await getAuthenticatedClient(_request)
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

@@ -8,15 +8,14 @@ export const config: PlasmoCSConfig = {
 /**
  * Video Detector Content Script — Clarvo AI
  *
+ * Stripped-down to detect-only:
  * - Scans for <video> elements using MutationObserver
- * - Injects an overlay button ("Start Clarvo Copilot") positioned over the video
- * - Forwards play/pause/ended events to the background SW
- * - Updates button state based on SESSION_STATE_CHANGED / SESSION_COMPLETED messages
+ * - Sends VIDEO_DETECTED / VIDEO_LOST to background (which forwards to side panel)
+ * - Forwards play/pause/ended events so background can pause/resume capture
+ * - Handles Ctrl+K screenshot capture
  *
- * Bugs fixed:
- * - stopPropagation() on button click prevents YouTube toggling play/pause
- * - Button state is driven by background messages, not optimistically
- * - Sessions clean up properly when stopped from popup or video ends
+ * NO overlay button — session start/stop is handled from the Side Panel
+ * (extension-level gesture required for chrome.tabCapture in MV3).
  */
 
 import type {
@@ -26,7 +25,6 @@ import type {
 } from '@clarvo/types'
 
 let activeVideo: HTMLVideoElement | null = null
-let overlayButton: HTMLButtonElement | null = null
 let sessionActive = false
 
 // ── Message helpers ───────────────────────────────────────────────────────────
@@ -46,167 +44,31 @@ function sendMessage<T>(msg: ExtensionMessage<T>): Promise<unknown> {
   })
 }
 
-// ── Button state helpers ──────────────────────────────────────────────────────
-
-function setButtonIdle(): void {
-  if (!overlayButton) return
-  overlayButton.textContent = '▶ Start Clarvo Copilot'
-  overlayButton.removeAttribute('data-clarvo-active')
-  overlayButton.style.background = '#6c63ff'
-  overlayButton.style.opacity = '1'
-  overlayButton.disabled = false
-  sessionActive = false
-}
-
-function setButtonRecording(): void {
-  if (!overlayButton) return
-  overlayButton.textContent = '⏹ Stop Clarvo'
-  overlayButton.setAttribute('data-clarvo-active', 'true')
-  overlayButton.style.background = '#dc2626'
-  overlayButton.style.opacity = '1'
-  overlayButton.disabled = false
-  sessionActive = true
-}
-
-function setButtonLoading(): void {
-  if (!overlayButton) return
-  overlayButton.textContent = '⏳ Starting…'
-  overlayButton.disabled = true
-  overlayButton.style.opacity = '0.7'
-}
-
-// ── Overlay creation ──────────────────────────────────────────────────────────
-
-function createOverlayButton(video: HTMLVideoElement): HTMLButtonElement {
-  const btn = document.createElement('button')
-  btn.textContent = '▶ Start Clarvo Copilot'
-  btn.setAttribute('aria-label', 'Start Clarvo AI learning session for this video')
-  btn.setAttribute('data-clarvo-overlay', 'true')
-
-  Object.assign(btn.style, {
-    position: 'absolute',
-    top: '12px',
-    left: '12px',
-    zIndex: '9999',
-    padding: '8px 16px',
-    borderRadius: '8px',
-    background: '#6c63ff',
-    color: '#fff',
-    fontSize: '13px',
-    fontWeight: '600',
-    border: 'none',
-    cursor: 'pointer',
-    fontFamily: '"DM Sans", system-ui, sans-serif',
-    boxShadow: '0 2px 12px rgba(108,99,255,0.45)',
-    transition: 'background 0.2s, opacity 0.15s',
-    letterSpacing: '-0.01em',
-  })
-
-  btn.addEventListener('mouseenter', () => {
-    if (!btn.disabled) btn.style.filter = 'brightness(1.1)'
-  })
-  btn.addEventListener('mouseleave', () => {
-    btn.style.filter = ''
-  })
-
-  btn.addEventListener('click', (e) => {
-    // ⚠️ CRITICAL: stop propagation so YouTube/other players don't intercept click
-    e.stopPropagation()
-    e.stopImmediatePropagation()
-    e.preventDefault()
-
-    if (sessionActive) {
-      // Stop session
-      setButtonLoading()
-      sendMessage({ type: 'STOP_SESSION', payload: {}, timestamp: Date.now() })
-        .then(() => setButtonIdle())
-        .catch(() => setButtonIdle())
-    } else {
-      // Start session
-      setButtonLoading()
-      sendMessage<VideoDetectedPayload>({
-        type: 'START_SESSION',
-        payload: {
-          videoSrc: video.src || video.currentSrc,
-          pageTitle: document.title,
-          pageUrl: window.location.href,
-        },
-        timestamp: Date.now(),
-      }).then((response) => {
-        const res = response as { ok?: boolean } | null
-        if (res?.ok) {
-          setButtonRecording()
-        } else {
-          // Auth error or network error — revert button
-          setButtonIdle()
-        }
-      }).catch(() => setButtonIdle())
-    }
-  })
-
-  return btn
-}
-
-/**
- * Find the best container to inject the overlay button into.
- *
- * YouTube: the <video> lives inside .html5-video-container which has height:0
- * (intrinsic sizing from the video frame). The #movie_player above it has the
- * correct dimensions but overflow:hidden — we must inject there.
- *
- * Other sites: walk up until we find a container that is visibly sized.
- */
-function findInjectionContainer(video: HTMLVideoElement): HTMLElement {
-  // YouTube-specific: use the outer player wrapper
-  const youtubePlayer = video.closest<HTMLElement>('#movie_player, .html5-video-player')
-  if (youtubePlayer) return youtubePlayer
-
-  // Generic fallback: walk up until we find a positioned, non-zero-height parent
-  let el: HTMLElement | null = video.parentElement
-  while (el && el !== document.body) {
-    const style = getComputedStyle(el)
-    if (el.offsetHeight > 10 && style.position !== 'static') return el
-    el = el.parentElement
-  }
-
-  // Last resort: ensure the direct parent is positioned
-  const parent = video.parentElement ?? document.body
-  if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative'
-  return parent
-}
-
-function injectOverlay(video: HTMLVideoElement): void {
-  if (video.dataset['clarvoInjected']) return
-
-  const container = findInjectionContainer(video)
-  overlayButton = createOverlayButton(video)
-  container.appendChild(overlayButton)
-  video.dataset['clarvoInjected'] = 'true'
-}
-
-function removeOverlay(): void {
-  if (overlayButton) {
-    overlayButton.remove()
-    overlayButton = null
-  }
-  sessionActive = false
-}
-
 // ── Video event forwarding ────────────────────────────────────────────────────
 
 function attachVideoListeners(video: HTMLVideoElement): void {
   video.addEventListener('play', () => {
+    console.log('[Clarvo content] ▶ Video play event (sessionActive:', sessionActive, ')')
     if (!sessionActive) return
-    sendMessage({ type: 'VIDEO_PLAY', payload: { videoSrc: video.src }, timestamp: Date.now() })
+    sendMessage({ type: 'VIDEO_PLAY', payload: { videoSrc: video.src || video.currentSrc }, timestamp: Date.now() })
   })
   video.addEventListener('pause', () => {
+    console.log('[Clarvo content] ⏸ Video pause event (sessionActive:', sessionActive, ', ended:', video.ended, ')')
     if (!sessionActive) return
-    sendMessage({ type: 'VIDEO_PAUSE', payload: { videoSrc: video.src }, timestamp: Date.now() })
+    // Browsers fire 'pause' right before 'ended' — skip to avoid a
+    // spurious pauseSession() that races with stopSession().
+    if (video.ended) {
+      console.log('[Clarvo content] ⏸ Already ended — skipping pause (ended handler will fire)')
+      return
+    }
+    console.log('[Clarvo content] ⏸ Sending VIDEO_PAUSE')
+    sendMessage({ type: 'VIDEO_PAUSE', payload: { videoSrc: video.src || video.currentSrc }, timestamp: Date.now() })
   })
   video.addEventListener('ended', () => {
+    console.log('[Clarvo content] 🏁 Video ended event (sessionActive:', sessionActive, ')')
     if (!sessionActive) return
-    sendMessage({ type: 'VIDEO_ENDED', payload: { videoSrc: video.src }, timestamp: Date.now() })
-    setButtonIdle()
+    console.log('[Clarvo content] 🏁 Sending VIDEO_ENDED — triggering final flush')
+    sendMessage({ type: 'VIDEO_ENDED', payload: { videoSrc: video.src || video.currentSrc }, timestamp: Date.now() })
   })
 }
 
@@ -246,8 +108,18 @@ document.addEventListener('keydown', (e) => {
   }
 })
 
-// ── Background message listener ───────────────────────────────────────────────
-// Keeps button state in sync with actual session state
+// ── Session state listener ────────────────────────────────────────────────────
+// Keeps sessionActive flag in sync so we know when to forward video events
+
+// On load: initialize sessionActive from persisted storage so events are
+// forwarded correctly if the page reloads while a session is active.
+chrome.storage.local.get('clarvoSession').then((result) => {
+  const s = result['clarvoSession'] as { state?: string } | undefined
+  if (s?.state === 'RECORDING' || s?.state === 'PAUSED') {
+    sessionActive = true
+    console.log('[Clarvo content] 🔄 Restored sessionActive=true from storage (state:', s.state, ')')
+  }
+})
 
 chrome.runtime.onMessage.addListener((msg: ExtensionMessage<unknown>) => {
   if (!msg?.type) return
@@ -255,36 +127,49 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage<unknown>) => {
   switch (msg.type) {
     case 'SESSION_STATE_CHANGED': {
       const payload = msg.payload as { newState?: string } | null
-      if (payload?.newState === 'RECORDING') {
-        setButtonRecording()
+      const prev = sessionActive
+      if (payload?.newState === 'RECORDING' || payload?.newState === 'PAUSED') {
+        sessionActive = true
       } else if (payload?.newState === 'COMPLETED' || payload?.newState === null) {
-        setButtonIdle()
+        sessionActive = false
       }
+      console.log('[Clarvo content] 📡 SESSION_STATE_CHANGED:', payload?.newState, '| sessionActive:', prev, '→', sessionActive)
       break
     }
     case 'SESSION_COMPLETED':
-      setButtonIdle()
+      sessionActive = false
       break
-    case 'ERROR': {
-      // If session failed to start, revert button
-      const err = msg.payload as { recoverable?: boolean } | null
-      if (!sessionActive || err?.recoverable === false) {
-        setButtonIdle()
+    case 'TRIGGER_SCREENSHOT': {
+      if (sessionActive && activeVideo) {
+        const dataUrl = captureVideoFrame(activeVideo)
+        if (dataUrl) {
+          sendMessage<ScreenshotReadyPayload>({
+            type: 'SCREENSHOT_REQUESTED',
+            payload: { sessionId: '', dataUrl, audioContext: '' },
+            timestamp: Date.now(),
+          })
+        } else {
+          sendMessage({
+            type: 'ERROR',
+            payload: { code: 'DRM_PROTECTED', message: 'Cannot capture DRM-protected content', recoverable: false },
+            timestamp: Date.now(),
+          })
+        }
       }
       break
     }
   }
 })
 
-// ── DOM Mutation Observer ─────────────────────────────────────────────────────
+// ── DOM Mutation Observer — Video Detection ───────────────────────────────────
 
 function scanForVideos(): void {
   const videos = document.querySelectorAll<HTMLVideoElement>('video')
 
   if (videos.length === 0) {
     if (activeVideo) {
-      removeOverlay()
       activeVideo = null
+      sendMessage({ type: 'VIDEO_LOST', payload: {}, timestamp: Date.now() })
     }
     return
   }
@@ -292,10 +177,6 @@ function scanForVideos(): void {
   // Use the most prominent video (largest width, or first with a source)
   let bestVideo: HTMLVideoElement | null = null
   for (const v of videos) {
-    if (v.dataset['clarvoInjected']) {
-      // Already injected on this video — keep it
-      if (v === activeVideo) return
-    }
     if (!bestVideo) {
       bestVideo = v
     } else if ((v.videoWidth || v.offsetWidth) > (bestVideo.videoWidth || bestVideo.offsetWidth)) {
@@ -306,18 +187,26 @@ function scanForVideos(): void {
   if (!bestVideo) return
 
   if (bestVideo !== activeVideo) {
-    if (activeVideo) removeOverlay()
     activeVideo = bestVideo
-    injectOverlay(activeVideo)
     attachVideoListeners(activeVideo)
+
+    // Notify background (which forwards to side panel) that video is detected
+    sendMessage<VideoDetectedPayload>({
+      type: 'VIDEO_DETECTED',
+      payload: {
+        videoSrc: activeVideo.src || activeVideo.currentSrc,
+        pageTitle: document.title,
+        pageUrl: window.location.href,
+      },
+      timestamp: Date.now(),
+    })
   }
 }
 
 // Initial scan
 scanForVideos()
 
-// Observe DOM for SPA navigation (YouTube navigates without full page reload).
-// Debounced to avoid hammering scanForVideos on every YouTube DOM mutation.
+// Observe DOM for SPA navigation (YouTube navigates without full page reload)
 let _scanDebounce: ReturnType<typeof setTimeout> | null = null
 const observer = new MutationObserver(() => {
   if (_scanDebounce) clearTimeout(_scanDebounce)

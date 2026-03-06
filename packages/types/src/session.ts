@@ -1,5 +1,5 @@
 /** Session state machine states */
-export type SessionState = 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
+export type SessionState = 'RECORDING' | 'PAUSED' | 'COMPLETED' | 'POST_PROCESSING'
 
 export interface Session {
   id: string
@@ -10,6 +10,7 @@ export interface Session {
   notes: string | null
   state: SessionState
   duration_seconds: number | null
+  watch_time_seconds: number | null
   notion_page_id: string | null
   created_at: string
   updated_at: string

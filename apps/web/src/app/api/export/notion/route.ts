@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getAuthenticatedClient } from '@/lib/supabase/auth'
 import { formatNotionBlocks } from '@clarvo/utils'
 import { Client as NotionClient } from '@notionhq/client'
 import { z } from 'zod'
@@ -11,8 +11,7 @@ const Schema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { user, supabase } = await getAuthenticatedClient(request)
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

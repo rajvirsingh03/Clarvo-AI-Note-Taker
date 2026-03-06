@@ -15,9 +15,16 @@ function Popup() {
 
   // ── Auth bootstrap ──────────────────────────────────────
   useEffect(() => {
-    // Step 1: ask all open web-app tabs to sync their session immediately
-    // (authBridge.ts runs on these tabs and responds to REQUEST_SESSION)
-    const WEB_ORIGINS = ['http://localhost:3000', 'https://clarvo.ai', 'https://app.clarvo.ai']
+    // Step 1: ask all open web-app tabs to sync their session immediately.
+    // We match multiple localhost ports for dev (Next.js sometimes picks 3001).
+    const WEB_ORIGINS = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'https://clarvo.ai',
+      'https://www.clarvo.ai',
+      'https://app.clarvo.ai',
+    ]
     chrome.tabs.query({}, (tabs) => {
       for (const tab of tabs) {
         if (tab.id && tab.url && WEB_ORIGINS.some((o) => tab.url!.startsWith(o))) {
@@ -28,10 +35,27 @@ function Popup() {
       }
     })
 
-    // Step 2: bootstrap from storage (works after authBridge has synced at least once)
-    bootstrapAuth().then((s) => {
-      setSession(s)
-      setAuthState(s ? 'signed-in' : 'signed-out')
+    // Step 2: bootstrap from storage, with a retry after 1.5 s in case the
+    // authBridge content script hasn't synced yet (e.g. user just signed in).
+    const tryBootstrap = async () => {
+      const s = await bootstrapAuth()
+      if (s) {
+        setSession(s)
+        setAuthState('signed-in')
+        return true
+      }
+      return false
+    }
+
+    tryBootstrap().then((ok) => {
+      if (ok) return
+      // Not found on first try — show signed-out immediately but retry once
+      setAuthState('signed-out')
+      setTimeout(() => {
+        tryBootstrap().then((ok2) => {
+          if (!ok2) setAuthState('signed-out')
+        })
+      }, 1500)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, s) => {
@@ -100,6 +124,15 @@ function Popup() {
 
   const handleStop = useCallback(() => {
     chrome.runtime.sendMessage({ type: 'STOP_SESSION', payload: {}, timestamp: Date.now() })
+  }, [])
+
+  const handleOpenSidePanel = useCallback(() => {
+    chrome.windows.getCurrent((win) => {
+      if (win.id !== undefined) {
+        chrome.sidePanel.open({ windowId: win.id })
+        window.close()
+      }
+    })
   }, [])
 
   const isRecording = sessionState?.state === 'RECORDING'
@@ -176,13 +209,16 @@ function Popup() {
         {/* Signed in — idle */}
         {authState === 'signed-in' && !isRecording && !isDone && (
           <div className="popup-idle">
-            <div className="popup-idle-icon" aria-hidden>🎧</div>
-            <p className="popup-hint">
-              Navigate to any video and click<br />
-              <strong>"Start Clarvo Copilot"</strong> to begin.
+            <div className="popup-idle-icon" aria-hidden>�</div>
+            <p className="popup-hint" style={{ marginBottom: '12px' }}>
+              Navigate to a video, then open the
+              <strong> Side Panel</strong> to start capturing.
             </p>
+            <button className="popup-btn popup-btn-primary" onClick={handleOpenSidePanel}>
+              Open Side Panel
+            </button>
             {session?.user?.email && (
-              <p className="popup-hint" style={{ opacity: 0.5, fontSize: '10px', marginTop: '6px' }}>
+              <p className="popup-hint" style={{ opacity: 0.5, fontSize: '10px', marginTop: '10px' }}>
                 {session.user.email}
               </p>
             )}

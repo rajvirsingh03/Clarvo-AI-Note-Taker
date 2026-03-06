@@ -17,6 +17,7 @@
     "@clarvo/types": "workspace:*",
     "@clarvo/utils": "workspace:*",
     "@supabase/supabase-js": "^2.98.0",
+    "gsap": "^3.14.2",
     "plasmo": "^0.90.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -31,9 +32,12 @@
       "sidePanel",
       "storage",
       "offscreen",
-      "tabs"
+      "tabs",
+      "tabCapture"
     ],
-    "host_permissions": ["<all_urls>"],
+    "host_permissions": [
+      "<all_urls>"
+    ],
     "side_panel": {
       "default_path": "sidepanel.html"
     },

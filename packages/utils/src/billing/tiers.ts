@@ -1,8 +1,7 @@
 import type { BillingTier, TierLimits, BillingPlan } from '@clarvo/types'
 
 export const FREE_TIER_LIMITS: TierLimits = {
-  SESSIONS_PER_MONTH: 3,
-  AUDIO_MINUTES_PER_SESSION: 30,
+  TOTAL_WATCH_MINUTES: 30,
   SCREENSHOTS_PER_SESSION: 3,
   FLASHCARDS_ENABLED: false,
   ACTION_PLAN_ENABLED: false,
@@ -10,8 +9,7 @@ export const FREE_TIER_LIMITS: TierLimits = {
 }
 
 export const PRO_TIER_LIMITS: TierLimits = {
-  SESSIONS_PER_MONTH: Infinity,
-  AUDIO_MINUTES_PER_SESSION: Infinity,
+  TOTAL_WATCH_MINUTES: Infinity,
   SCREENSHOTS_PER_SESSION: Infinity,
   FLASHCARDS_ENABLED: true,
   ACTION_PLAN_ENABLED: true,

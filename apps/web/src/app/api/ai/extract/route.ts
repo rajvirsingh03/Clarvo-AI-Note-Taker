@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getAuthenticatedClient } from '@/lib/supabase/auth'
 import { extractConcepts } from '@/lib/gemini'
 import { z } from 'zod'
 
@@ -11,8 +11,7 @@ const ExtractSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { user, supabase } = await getAuthenticatedClient(request)
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -42,31 +41,65 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Session is not in RECORDING state' }, { status: 409 })
     }
 
-    // Extract concepts via Gemini 1.5 Pro
-    const extractedNotes = await extractConcepts(chunk, existingNotesTail)
+    // Extract concepts via Gemini; return a retriable upstream error if the model fails.
+    let extractedNotes = ''
+    try {
+      extractedNotes = await extractConcepts(chunk, existingNotesTail)
+    } catch (error) {
+      console.error('[/api/ai/extract] Gemini extraction failed:', error)
+      return NextResponse.json(
+        { error: 'AI extraction failed. Please retry in a moment.' },
+        { status: 502 }
+      )
+    }
+
+    const { count: chunkCount, error: chunkCountError } = await supabase
+      .from('session_chunks')
+      .select('*', { count: 'exact', head: true })
+      .eq('session_id', sessionId)
+
+    if (chunkCountError) {
+      console.error('[/api/ai/extract] Failed to count session chunks:', chunkCountError)
+      return NextResponse.json({ error: 'Failed to persist transcript chunk' }, { status: 500 })
+    }
 
     // Store the chunk
-    await supabase.from('session_chunks').insert({
+    const { error: chunkInsertError } = await supabase.from('session_chunks').insert({
       session_id: sessionId,
       transcript: chunk,
-      chunk_index: 0, // TODO: derive from existing chunk count
+      chunk_index: chunkCount ?? 0,
     })
 
+    if (chunkInsertError) {
+      console.error('[/api/ai/extract] Failed to insert transcript chunk:', chunkInsertError)
+      return NextResponse.json({ error: 'Failed to persist transcript chunk' }, { status: 500 })
+    }
+
     // Append extracted notes to the session (append-only — never overwrite user edits)
-    const { data: currentSession } = await supabase
+    const { data: currentSession, error: currentSessionError } = await supabase
       .from('sessions')
       .select('notes')
       .eq('id', sessionId)
       .single()
 
+    if (currentSessionError) {
+      console.error('[/api/ai/extract] Failed to fetch current session notes:', currentSessionError)
+      return NextResponse.json({ error: 'Failed to load session notes' }, { status: 500 })
+    }
+
     const updatedNotes = currentSession?.notes
       ? `${currentSession.notes}\n\n${extractedNotes}`
       : extractedNotes
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('sessions')
       .update({ notes: updatedNotes, updated_at: new Date().toISOString() })
       .eq('id', sessionId)
+
+    if (updateError) {
+      console.error('[/api/ai/extract] Failed to update session notes:', updateError)
+      return NextResponse.json({ error: 'Failed to save extracted notes' }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, extractedNotes })
   } catch (error) {

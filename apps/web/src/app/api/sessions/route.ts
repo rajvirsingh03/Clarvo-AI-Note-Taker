@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getAuthenticatedClient } from '@/lib/supabase/auth'
 import { z } from 'zod'
 
 // GET /api/sessions — list sessions for authenticated user
 export async function GET(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { user, supabase } = await getAuthenticatedClient(request)
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -44,32 +43,22 @@ const CreateSessionSchema = z.object({
 // POST /api/sessions — create a new session
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { user, supabase } = await getAuthenticatedClient(request)
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Free tier: max 3 sessions per month
+    // Free tier: max 30 minutes of total watch time
     const { data: profile } = await supabase
       .from('users')
-      .select('billing_tier')
+      .select('billing_tier, free_minutes_used')
       .eq('id', user.id)
       .single()
 
     if (profile?.billing_tier === 'FREE') {
-      const startOfMonth = new Date()
-      startOfMonth.setDate(1)
-      startOfMonth.setHours(0, 0, 0, 0)
-
-      const { count } = await supabase
-        .from('sessions')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', startOfMonth.toISOString())
-
-      if ((count ?? 0) >= 3) {
+      const freeMinutesUsed = profile.free_minutes_used ?? 0
+      if (freeMinutesUsed >= 30) {
         return NextResponse.json(
-          { error: 'Free tier allows 3 sessions per month. Upgrade to Pro for unlimited sessions.', upgradeRequired: true },
+          { error: 'You\'ve used all 30 free minutes. Upgrade to Pro for unlimited watch time.', upgradeRequired: true },
           { status: 402 }
         )
       }

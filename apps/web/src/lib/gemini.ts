@@ -14,7 +14,7 @@ const SAFETY_SETTINGS = [
  */
 export function getGeminiPro() {
   return genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash-lite-preview-06-17',
+    model: 'gemini-2.5-flash-lite',
     safetySettings: SAFETY_SETTINGS,
   })
 }
@@ -24,7 +24,7 @@ export function getGeminiPro() {
  */
 export function getGeminiProVision() {
   return genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash-lite-preview-06-17',
+    model: 'gemini-2.5-flash-lite',
     safetySettings: SAFETY_SETTINGS,
   })
 }

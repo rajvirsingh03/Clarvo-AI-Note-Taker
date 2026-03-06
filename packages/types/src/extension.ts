@@ -13,6 +13,8 @@ export type ExtensionMessageType =
   | 'VIDEO_ENDED'
   | 'START_SESSION'
   | 'STOP_SESSION'
+  | 'PAUSE_SESSION'
+  | 'RESUME_SESSION'
   | 'AUDIO_CHUNK_READY'
   | 'TRANSCRIPT_READY'
   | 'NOTES_UPDATED'
@@ -26,11 +28,22 @@ export type ExtensionMessageType =
   | 'INACTIVITY_WARNING'
   | 'START_AUDIO_CAPTURE'
   | 'STOP_AUDIO_CAPTURE'
+  | 'PAUSE_AUDIO_CAPTURE'
+  | 'RESUME_AUDIO_CAPTURE'
+  // ── Offscreen document handshake ──
+  | 'OFFSCREEN_READY'    // offscreen → background: doc is loaded and listener is registered
+  | 'CAPTURE_STARTED'    // offscreen → background: audio capture started successfully
+  | 'CAPTURE_FAILED'     // offscreen → background: audio capture failed to start
+  | 'AUDIO_CAPTURE_STOPPED' // offscreen → background: final stop flush is complete
+  | 'TRIGGER_SCREENSHOT'     // side panel / background → content script: capture frame now
+  | 'GENERATE_FLASHCARDS_ACTION_PLAN' // side panel → background: trigger AI generation
+  | 'FLASHCARDS_ACTION_PLAN_READY'    // background → side panel: generation succeeded
+  | 'GENERATE_FLASHCARDS_ACTION_PLAN_ERROR' // background → side panel: generation failed
 
 export interface ExtensionMessage<T = unknown> {
   type: ExtensionMessageType
-  payload: T
-  timestamp: number
+  payload?: T
+  timestamp?: number
 }
 
 export interface VideoDetectedPayload {
@@ -95,4 +108,5 @@ export interface ExtensionSessionState {
   chunkCount: number
   lastActivityAt: number | null
   accumulatedTranscript: string
+  watchTimeSeconds: number
 }

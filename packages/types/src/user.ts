@@ -6,6 +6,7 @@ export interface User {
   full_name: string | null
   avatar_url: string | null
   billing_tier: BillingTier
+  free_minutes_used: number
   notion_access_token: string | null
   notion_workspace_id: string | null
   stripe_customer_id?: string | null

@@ -12,6 +12,7 @@ export type Database = {
           full_name: string | null
           avatar_url: string | null
           billing_tier: 'FREE' | 'PRO'
+          free_minutes_used: number
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           notion_access_token: string | null
@@ -26,6 +27,7 @@ export type Database = {
           full_name?: string | null
           avatar_url?: string | null
           billing_tier?: 'FREE' | 'PRO'
+          free_minutes_used?: number
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           notion_access_token?: string | null
@@ -38,6 +40,7 @@ export type Database = {
           full_name?: string | null
           avatar_url?: string | null
           billing_tier?: 'FREE' | 'PRO'
+          free_minutes_used?: number
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           notion_access_token?: string | null
@@ -53,8 +56,9 @@ export type Database = {
           user_id: string
           title: string
           notes: string
-          state: 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
+          state: 'RECORDING' | 'PAUSED' | 'COMPLETED' | 'POST_PROCESSING'
           duration_seconds: number
+          watch_time_seconds: number
           notion_page_id: string | null
           video_url: string | null
           video_title: string | null
@@ -66,8 +70,9 @@ export type Database = {
           user_id: string
           title?: string
           notes?: string
-          state?: 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
+          state?: 'RECORDING' | 'PAUSED' | 'COMPLETED' | 'POST_PROCESSING'
           duration_seconds?: number
+          watch_time_seconds?: number
           notion_page_id?: string | null
           video_url?: string | null
           video_title?: string | null
@@ -77,8 +82,9 @@ export type Database = {
           user_id?: string
           title?: string
           notes?: string
-          state?: 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
+          state?: 'RECORDING' | 'PAUSED' | 'COMPLETED' | 'POST_PROCESSING'
           duration_seconds?: number
+          watch_time_seconds?: number
           notion_page_id?: string | null
           video_url?: string | null
           video_title?: string | null
@@ -182,10 +188,18 @@ export type Database = {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      increment_free_minutes: {
+        Args: {
+          p_user_id: string
+          p_minutes: number
+        }
+        Returns: undefined
+      }
+    }
     Enums: {
       billing_tier: 'FREE' | 'PRO'
-      session_state: 'RECORDING' | 'COMPLETED' | 'POST_PROCESSING'
+      session_state: 'RECORDING' | 'PAUSED' | 'COMPLETED' | 'POST_PROCESSING'
     }
     CompositeTypes: Record<string, never>
   }

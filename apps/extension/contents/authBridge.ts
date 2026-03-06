@@ -1,22 +1,18 @@
 /**
  * Auth Bridge Content Script — Clarvo AI
  *
- * Runs on the Clarvo web app pages. Reads the Supabase session from the
- * page's localStorage (which content scripts can access directly) and
- * mirrors access_token + refresh_token into chrome.storage.local so the
- * extension popup and background SW can use them without a separate login.
+ * Runs on the Clarvo web app pages. Calls the `/api/me` endpoint (which reads
+ * the Supabase session from httpOnly cookies) and mirrors the tokens into
+ * chrome.storage.local so the extension popup/background SW can use them.
  *
  * Flow:
- *   1. User signs in on the web app → Supabase writes session to page localStorage
- *   2. This script detects it (on load + via polling every 1.5s)
- *   3. Tokens written to chrome.storage.local under clarvoAuthToken / clarvoRefreshToken
+ *   1. User signs in on the web app → Supabase sets session cookies
+ *   2. This script calls GET /api/me (cookies are included automatically)
+ *   3. access_token + refresh_token written to chrome.storage.local
  *   4. Extension popup → bootstrapAuth() → supabase.auth.setSession() → ✅ signed in
  *
  * Also responds to REQUEST_SESSION messages from the popup so it can
- * proactively pull a fresh session without relying on passive storage events.
- *
- * NOTE: window.addEventListener('storage') does NOT fire for same-tab writes.
- * Supabase writes its session from the same tab, so we poll every 1.5s instead.
+ * proactively pull a fresh session without relying on passive polling.
  */
 
 import type { PlasmoCSConfig } from 'plasmo'
@@ -24,6 +20,8 @@ import type { PlasmoCSConfig } from 'plasmo'
 export const config: PlasmoCSConfig = {
   matches: [
     'http://localhost:3000/*',
+    'http://localhost:3001/*',
+    'http://localhost:3002/*',
     'https://clarvo.ai/*',
     'https://www.clarvo.ai/*',
     'https://app.clarvo.ai/*',
@@ -43,17 +41,95 @@ type RawSession = {
 }
 
 /**
- * Scan window.localStorage for a Supabase auth session.
- * Key pattern: sb-<project-ref>-auth-token
+ * Call the /api/me endpoint on the web app to get the current user's
+ * session tokens. Because this content script runs on clarvo.ai pages,
+ * the browser automatically includes the Supabase session cookies.
  */
-function findSupabaseSession(): RawSession | null {
+async function fetchSession(): Promise<RawSession | null> {
+  try {
+    const res = await fetch('/api/me', { credentials: 'include' })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data?.access_token) {
+      return {
+        access_token:  data.access_token,
+        refresh_token: data.refresh_token ?? '',
+        user:          data.user,
+      }
+    }
+  } catch {
+    // Network or parsing error — page probably not ready yet
+  }
+  return null
+}
+
+/**
+ * Fallback: scan cookies directly for a Supabase auth-token cookie.
+ * This works when @supabase/ssr stores the session in non-httpOnly cookies.
+ */
+function findSupabaseSessionFromCookies(): RawSession | null {
+  try {
+    const cookies = document.cookie.split(';').map((c) => c.trim())
+
+    // Look for sb-<ref>-auth-token (non-chunked)
+    for (const cookie of cookies) {
+      const eqIdx = cookie.indexOf('=')
+      if (eqIdx === -1) continue
+      const name = cookie.substring(0, eqIdx)
+      if (name.startsWith('sb-') && name.endsWith('-auth-token')) {
+        const value = decodeURIComponent(cookie.substring(eqIdx + 1))
+        const parsed = JSON.parse(value)
+        if (parsed?.access_token) {
+          return {
+            access_token:  parsed.access_token,
+            refresh_token: parsed.refresh_token ?? '',
+            user:          parsed.user,
+          }
+        }
+      }
+    }
+
+    // Look for chunked cookies: sb-<ref>-auth-token.0, .1, .2 …
+    const chunkPrefix = cookies
+      .map((c) => c.split('=')[0])
+      .filter((n): n is string => n !== undefined)
+      .find((n) => n.startsWith('sb-') && n.includes('-auth-token.0'))
+      ?.replace('.0', '')
+    if (chunkPrefix) {
+      const chunks: string[] = []
+      for (let i = 0; ; i++) {
+        const chunk = cookies.find((c) => c.startsWith(`${chunkPrefix}.${i}=`))
+        if (!chunk) break
+        chunks.push(decodeURIComponent(chunk.substring(chunk.indexOf('=') + 1)))
+      }
+      if (chunks.length > 0) {
+        const parsed = JSON.parse(chunks.join(''))
+        if (parsed?.access_token) {
+          return {
+            access_token:  parsed.access_token,
+            refresh_token: parsed.refresh_token ?? '',
+            user:          parsed.user,
+          }
+        }
+      }
+    }
+  } catch {
+    // Cookie parsing failed
+  }
+  return null
+}
+
+/**
+ * Fallback: scan localStorage (dev mode where vanilla @supabase/supabase-js is used)
+ */
+function findSupabaseSessionFromLocalStorage(): RawSession | null {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
       if (key?.startsWith('sb-') && key.endsWith('-auth-token')) {
         const raw = localStorage.getItem(key)
         if (!raw) continue
-        const parsed = JSON.parse(raw) as { access_token?: unknown; refresh_token?: unknown; user?: { id: string; email?: string } }
+        const parsed = JSON.parse(raw)
         if (typeof parsed?.access_token === 'string') {
           return {
             access_token:  parsed.access_token,
@@ -83,38 +159,47 @@ function syncToExtension(session: RawSession | null): void {
   }
 }
 
-// ── Initial sync immediately when content script loads ───────────────────────
+// ── Main sync function ───────────────────────────────────────────────────────
 let lastToken = ''
-const initial = findSupabaseSession()
-lastToken = initial?.access_token ?? ''
-syncToExtension(initial)
 
-// ── Poll for auth state changes every 1.5s ────────────────────────────────────
-// Supabase writes to localStorage from the same tab so window.storage event
-// never fires for it. Polling is the only reliable way to detect the change.
-const authPoller = setInterval(() => {
-  const s = findSupabaseSession()
-  const token = s?.access_token ?? ''
+async function syncAuth(): Promise<RawSession | null> {
+  // 1. Try /api/me (most reliable — validates session server-side)
+  let session = await fetchSession()
+
+  // 2. Fallback: read cookies directly
+  if (!session) session = findSupabaseSessionFromCookies()
+
+  // 3. Fallback: localStorage (dev mode)
+  if (!session) session = findSupabaseSessionFromLocalStorage()
+
+  const token = session?.access_token ?? ''
   if (token !== lastToken) {
     lastToken = token
-    syncToExtension(s)
+    syncToExtension(session)
   }
-}, 1500)
+  return session
+}
+
+// ── Initial sync when content script loads ───────────────────────────────────
+syncAuth()
+
+// ── Poll for auth changes every 5 seconds ────────────────────────────────────
+const authPoller = setInterval(() => { syncAuth() }, 5000)
 
 window.addEventListener('beforeunload', () => clearInterval(authPoller))
 
 // ── Respond to REQUEST_SESSION from popup / background SW ────────────────────
 chrome.runtime.onMessage.addListener((msg: { type?: string }, _sender, sendResponse) => {
   if (msg?.type === 'REQUEST_SESSION') {
-    const s = findSupabaseSession()
-    syncToExtension(s)
-    sendResponse({
-      ok:            !!s,
-      access_token:  s?.access_token  ?? null,
-      refresh_token: s?.refresh_token ?? null,
-      user:          s?.user          ?? null,
+    syncAuth().then((s) => {
+      sendResponse({
+        ok:            !!s,
+        access_token:  s?.access_token  ?? null,
+        refresh_token: s?.refresh_token ?? null,
+        user:          s?.user          ?? null,
+      })
     })
-    return true
+    return true  // Keep channel open for async response
   }
 })
 

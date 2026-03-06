@@ -5,7 +5,7 @@ applyTo: "**"
 # Repository Instructions for Copilot
 
 This repository has pre-configured Skills and MCP servers. Copilot should be aware of them when generating responses, reviewing code, or suggesting implementations, but usage is optional and should be applied only when relevant.
-
+For the extension, always debug for the dev environment instead of production.
 ---
 
 ## Skills
