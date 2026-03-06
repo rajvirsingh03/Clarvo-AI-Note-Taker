@@ -135,8 +135,7 @@ export default function SidePanel() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [videoTitle, setVideoTitle] = useState<string>('')
   const [elapsed, setElapsed] = useState(0)
-  // liveTranscript kept for future live transcript display feature
-  const [, setLiveTranscript] = useState('')
+  const [liveTranscript, setLiveTranscript] = useState('')
   const [noteChunks, setNoteChunks] = useState<string[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [isExtracting, setIsExtracting] = useState(false)
@@ -150,6 +149,7 @@ export default function SidePanel() {
   const [currentCardIndex, setCurrentCardIndex] = useState(0)
   const [isCardFlipped, setIsCardFlipped] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isGenerated, setIsGenerated] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [newActionText, setNewActionText] = useState('')
   // Floating toolbar
@@ -173,6 +173,8 @@ export default function SidePanel() {
   const processedChunksRef = useRef(0)
   // Track elapsed for screenshot timestamps
   const elapsedAtCapture = useRef(0)
+  // Ref to always hold the latest insertScreenshot (fixes stale closure in message handler)
+  const insertScreenshotRef = useRef<((dataUrl: string) => void) | null>(null)
 
   // ── Restore persisted state on mount ────────────────────────────────────────
   useEffect(() => {
@@ -270,7 +272,7 @@ export default function SidePanel() {
 
         case 'SCREENSHOT_READY': {
           const p = msg.payload as { dataUrl: string }
-          insertScreenshot(p.dataUrl)
+          insertScreenshotRef.current?.(p.dataUrl)
           break
         }
 
@@ -279,6 +281,7 @@ export default function SidePanel() {
           setFlashcards(p.flashcards ?? [])
           setActionItems(parseActionPlan(p.actionPlan ?? ''))
           setIsGenerating(false)
+          setIsGenerated(true)
           setGenerateError(null)
           break
         }
@@ -530,6 +533,7 @@ export default function SidePanel() {
     setActionItems([])
     setCompletedPage('notes')
     setIsGenerating(false)
+    setIsGenerated(false)
     setGenerateError(null)
   }, [])
 
@@ -575,6 +579,11 @@ export default function SidePanel() {
     gsap.from(figure, { scale: 0.95, opacity: 0, duration: 0.35, ease: 'back.out(1.5)' })
     figure.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [view])
+
+  // Keep the ref current so the message handler (which has [] deps) always calls the latest version
+  useEffect(() => {
+    insertScreenshotRef.current = insertScreenshot
+  }, [insertScreenshot])
 
   const handleScreenshotBtn = useCallback(() => {
     chrome.runtime.sendMessage({ type: 'TRIGGER_SCREENSHOT', payload: {}, timestamp: Date.now() })
@@ -737,6 +746,24 @@ export default function SidePanel() {
             </button>
           </div>
 
+          {/* Live transcript section */}
+          <div className="sp-live-transcript">
+            <div className="sp-live-transcript-label">
+              <span className="sp-live-dot" />
+              Live Transcript
+            </div>
+            <div className="sp-live-transcript-text">
+              {liveTranscript ? (
+                <>
+                  {liveTranscript}
+                  {!isPaused && <span className="sp-blink-cursor" />}
+                </>
+              ) : (
+                <span className="sp-live-transcript-placeholder">Waiting for audio…</span>
+              )}
+            </div>
+          </div>
+
           {/* Unified editor area */}
           <div className="sp-scroll-area sp-editor-area">
             {noteChunks.length === 0 && !isExtracting && (
@@ -866,7 +893,7 @@ export default function SidePanel() {
                   <button
                     className={`sp-action-btn sp-action-secondary ${isGenerating ? 'loading' : ''}`}
                     onClick={handleGenerate}
-                    disabled={isGenerating}
+                    disabled={isGenerating || isGenerated}
                   >
                     {isGenerating ? (
                       <>
@@ -907,7 +934,7 @@ export default function SidePanel() {
                     <button
                       className={`sp-gen-btn ${isGenerating ? 'loading' : ''}`}
                       onClick={handleGenerate}
-                      disabled={isGenerating}
+                      disabled={isGenerating || isGenerated}
                     >
                       {isGenerating ? <><span className="sp-spinner" /> Generating…</> : '✦ Generate Flashcards & Action Plan'}
                     </button>
@@ -978,7 +1005,7 @@ export default function SidePanel() {
                     <button
                       className={`sp-gen-btn ${isGenerating ? 'loading' : ''}`}
                       onClick={handleGenerate}
-                      disabled={isGenerating}
+                      disabled={isGenerating || isGenerated}
                     >
                       {isGenerating ? <><span className="sp-spinner" /> Generating…</> : '✦ Generate Flashcards & Action Plan'}
                     </button>
