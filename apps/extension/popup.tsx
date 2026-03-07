@@ -143,10 +143,19 @@ function Popup() {
       {/* ── Header ── */}
       <header className="popup-header">
         <div className="popup-logo">
-          <div className="popup-logo-icon" aria-hidden>⚡</div>
+          <div className="popup-logo-icon" aria-hidden>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden>
+              <path d="M7.5 1L2 7.5h4.5L5 12l6.5-7H7L7.5 1Z" fill="#a78bfa" stroke="#a78bfa" strokeWidth="0.5" strokeLinejoin="round"/>
+            </svg>
+          </div>
           Clarvo AI
         </div>
 
+        {authState === 'loading' && (
+          <span className="popup-status idle" aria-live="polite">
+            <span className="load-dot" /><span className="load-dot" /><span className="load-dot" />
+          </span>
+        )}
         {authState === 'signed-in' && isRecording && (
           <span className="popup-status recording" aria-live="polite">
             <span className="rec-dot" aria-hidden />
@@ -154,7 +163,12 @@ function Popup() {
           </span>
         )}
         {authState === 'signed-in' && isDone && (
-          <span className="popup-status done">Done</span>
+          <span className="popup-status done">
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden>
+              <path d="M1.5 4L3.2 5.7L6.5 2.3" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Done
+          </span>
         )}
       </header>
 
@@ -162,17 +176,30 @@ function Popup() {
       <main className="popup-content">
         {/* Loading */}
         {authState === 'loading' && (
-          <p className="popup-hint" style={{ textAlign: 'center', padding: '8px 0' }}>Loading…</p>
+          <div className="popup-loading">
+            <div className="popup-spinner" aria-hidden />
+            <p className="popup-hint">Starting up…</p>
+          </div>
         )}
 
         {/* Signed out */}
         {authState === 'signed-out' && (
           <div className="popup-idle">
-            <div className="popup-idle-icon" aria-hidden>🔐</div>
-            <p className="popup-hint" style={{ marginBottom: '12px' }}>
+            <div className="popup-idle-icon" aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <p className="popup-hint">
               Sign in to start capturing notes from videos.
             </p>
             <button className="popup-btn popup-btn-primary" onClick={handleSignIn}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                <polyline points="10 17 15 12 10 7"/>
+                <line x1="15" y1="12" x2="3" y2="12"/>
+              </svg>
               Sign In to Clarvo
             </button>
           </div>
@@ -181,17 +208,19 @@ function Popup() {
         {/* Signed in — recording */}
         {authState === 'signed-in' && isRecording && (
           <div className="popup-recording">
-            {sessionState?.videoTitle && (
-              <div>
-                <p className="popup-session-label">Now recording</p>
-                <p className="popup-session-title" title={sessionState.videoTitle}>
-                  {sessionState.videoTitle}
-                </p>
-              </div>
-            )}
+            <div className="popup-recording-info">
+              <p className="popup-session-label">Now recording</p>
+              <p className="popup-session-title" title={sessionState?.videoTitle ?? ''}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{flexShrink: 0, opacity: 0.5}}>
+                  <polygon points="23 7 16 12 23 17 23 7"/>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                </svg>
+                {sessionState?.videoTitle ?? 'Detecting video…'}
+              </p>
+            </div>
             <button className="popup-btn popup-btn-stop" onClick={handleStop} aria-label="Stop Clarvo session">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
-                <rect x="1" y="1" width="10" height="10" rx="2" />
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
+                <rect x="1.5" y="1.5" width="9" height="9" rx="2" />
               </svg>
               Stop Session
             </button>
@@ -201,26 +230,52 @@ function Popup() {
         {/* Signed in — done */}
         {authState === 'signed-in' && isDone && (
           <div className="popup-idle">
-            <div className="popup-idle-icon" aria-hidden>✅</div>
+            <div className="popup-idle-icon popup-idle-icon--green" aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
             <p className="popup-hint">Session complete! Open the dashboard to view your notes.</p>
+            <a
+              href={`${WEB_APP_URL}/app`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="popup-btn popup-btn-outline"
+            >
+              View Notes
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </a>
           </div>
         )}
 
         {/* Signed in — idle */}
         {authState === 'signed-in' && !isRecording && !isDone && (
           <div className="popup-idle">
-            <div className="popup-idle-icon" aria-hidden>�</div>
-            <p className="popup-hint" style={{ marginBottom: '12px' }}>
+            <div className="popup-idle-icon" aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+            </div>
+            <p className="popup-hint">
               Navigate to a video, then open the
               <strong> Side Panel</strong> to start capturing.
             </p>
             <button className="popup-btn popup-btn-primary" onClick={handleOpenSidePanel}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+              </svg>
               Open Side Panel
             </button>
             {session?.user?.email && (
-              <p className="popup-hint" style={{ opacity: 0.5, fontSize: '10px', marginTop: '10px' }}>
-                {session.user.email}
-              </p>
+              <p className="popup-email">{session.user.email}</p>
             )}
           </div>
         )}
@@ -236,12 +291,15 @@ function Popup() {
               rel="noopener noreferrer"
               className="popup-footer-link"
             >
-              Open Dashboard ↗
+              Open Dashboard
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="7" y1="17" x2="17" y2="7"/>
+                <polyline points="7 7 17 7 17 17"/>
+              </svg>
             </a>
             <button
               onClick={handleSignOut}
               className="popup-footer-link"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >
               Sign out
             </button>

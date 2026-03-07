@@ -36,7 +36,7 @@ export function DashboardSidebar() {
             fontFamily: 'var(--font-display), sans-serif',
             fontWeight: 700,
             fontSize: '1.0625rem',
-            color: 'var(--color-text)',
+            color: 'var(--color-text-primary)',
             textDecoration: 'none',
           }}
         >
@@ -63,7 +63,7 @@ export function DashboardSidebar() {
                     textDecoration: 'none',
                     fontSize: '0.875rem',
                     fontWeight: active ? 600 : 400,
-                    color: active ? 'var(--color-text)' : 'var(--color-muted)',
+                    color: active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                     background: active ? 'rgba(108,99,255,0.12)' : 'transparent',
                     transition: 'background 0.15s, color 0.15s',
                     minHeight: '44px',
@@ -82,7 +82,7 @@ export function DashboardSidebar() {
       <div style={{ padding: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
         <Link
           href="/"
-          style={{ display: 'block', color: 'var(--color-muted)', fontSize: '0.8125rem', padding: '0.5rem', textDecoration: 'none' }}
+          style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: '0.8125rem', padding: '0.5rem', textDecoration: 'none' }}
         >
           ← Back to website
         </Link>

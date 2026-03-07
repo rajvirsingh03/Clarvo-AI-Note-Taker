@@ -15,6 +15,14 @@ import { useEffect, useState, useRef, useCallback, useLayoutEffect } from 'react
 import gsap from 'gsap'
 import './sidepanel.css'
 
+import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
+import type { NodeViewProps } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
+import Highlight from '@tiptap/extension-highlight'
+import Link from '@tiptap/extension-link'
+import { Node, mergeAttributes } from '@tiptap/react'
+
 import type {
   ExtensionMessage,
   ExtensionSessionState,
@@ -118,6 +126,104 @@ function markdownToHtml(md: string): string {
   return out.join('\n')
 }
 
+// ── Screenshot NodeView Component (TipTap) ───────────────────────────────────
+
+const ScreenshotNodeView: React.FC<NodeViewProps> = ({ node, deleteNode, updateAttributes }) => {
+  const [caption, setCaption] = useState<string>((node.attrs.caption as string) || '')
+  const [showCaption, setShowCaption] = useState<boolean>(!!(node.attrs.caption as string))
+  const figRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (figRef.current) {
+      gsap.from(figRef.current, { scale: 0.95, opacity: 0, duration: 0.35, ease: 'back.out(1.5)' })
+      figRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [])
+
+  return (
+    <NodeViewWrapper>
+      <figure
+        ref={figRef as React.RefObject<HTMLElement>}
+        className="screenshot-block"
+        data-drag-handle
+      >
+        <button
+          className="screenshot-remove"
+          onClick={deleteNode}
+          onMouseDown={(e) => e.preventDefault()}
+          title="Remove screenshot"
+        >
+          ✕
+        </button>
+        <img src={node.attrs.src as string} alt="Screenshot" draggable={false} />
+        <div className="screenshot-footer">
+          <span className="screenshot-timestamp">📷 {node.attrs.timestamp as string}</span>
+          {!showCaption ? (
+            <button
+              className="screenshot-add-caption-btn"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+              onClick={() => setShowCaption(true)}
+            >
+              + Add Caption
+            </button>
+          ) : (
+            <textarea
+              className="screenshot-caption-input"
+              placeholder="Add a caption…"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              onBlur={() => updateAttributes({ caption })}
+              onMouseDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              rows={2}
+              autoFocus
+            />
+          )}
+        </div>
+      </figure>
+    </NodeViewWrapper>
+  )
+}
+
+// ── Screenshot TipTap Extension ──────────────────────────────────────────────
+
+const ScreenshotExtension = Node.create({
+  name: 'screenshot',
+  group: 'block',
+  atom: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      timestamp: { default: '' },
+      caption: { default: '' },
+    }
+  },
+
+  parseHTML() {
+    return [{ tag: 'figure[data-type="screenshot"]' }]
+  },
+
+  renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, unknown> }) {
+    return ['figure', mergeAttributes(HTMLAttributes, { 'data-type': 'screenshot' })]
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ScreenshotNodeView)
+  },
+})
+
+// ── Shared TipTap extensions ─────────────────────────────────────────────────
+
+const EDITOR_EXTENSIONS = [
+  StarterKit,
+  Underline,
+  Highlight.configure({ multicolor: true }),
+  Link.configure({ openOnClick: false }),
+  ScreenshotExtension,
+]
+
 // ── Action plan text → items ──────────────────────────────────────────────────
 
 function parseActionPlan(text: string): ActionItem[] {
@@ -157,7 +263,6 @@ export default function SidePanel() {
   const toolbarRef = useRef<HTMLDivElement>(null)
 
   // Refs for GSAP targets
-  // Refs for GSAP targets
   const idleRef = useRef<HTMLDivElement>(null)
   const detectedRef = useRef<HTMLDivElement>(null)
   const recordingRef = useRef<HTMLDivElement>(null)
@@ -166,15 +271,33 @@ export default function SidePanel() {
   const notesEndRef = useRef<HTMLDivElement>(null)
   const waveTimeline = useRef<gsap.core.Timeline | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  // Editor refs
-  const editorRef = useRef<HTMLDivElement>(null)           // recording editor
-  const completedEditorRef = useRef<HTMLDivElement>(null)  // completed notes editor
-  const savedNotesHtml = useRef<string>('')                // saved when session ends
+  // Persisted notes HTML + chunk tracking
+  const savedNotesHtml = useRef<string>('')
   const processedChunksRef = useRef(0)
   // Track elapsed for screenshot timestamps
   const elapsedAtCapture = useRef(0)
   // Ref to always hold the latest insertScreenshot (fixes stale closure in message handler)
   const insertScreenshotRef = useRef<((dataUrl: string) => void) | null>(null)
+
+  // ── TipTap editors ──────────────────────────────────────────────────────────
+  const recordingEditor = useEditor({
+    extensions: EDITOR_EXTENSIONS,
+    editorProps: {
+      attributes: {
+        class: 'unified-editor',
+        'data-placeholder': 'Start typing your notes…',
+      },
+    },
+  })
+  const completedEditor = useEditor({
+    extensions: EDITOR_EXTENSIONS,
+    editorProps: {
+      attributes: { class: 'unified-editor' },
+    },
+  })
+  // Stable ref so message handler ([] deps) can access current recording editor
+  const recordingEditorRef = useRef(recordingEditor)
+  useEffect(() => { recordingEditorRef.current = recordingEditor }, [recordingEditor])
 
   // ── Restore persisted state on mount ────────────────────────────────────────
   useEffect(() => {
@@ -237,7 +360,7 @@ export default function SidePanel() {
               setNoteChunks([])
               processedChunksRef.current = 0
               savedNotesHtml.current = ''
-              if (editorRef.current) editorRef.current.innerHTML = ''
+              recordingEditorRef.current?.commands.clearContent()
               setAlerts([])
             }
           } else if (p.newState === 'PAUSED') {
@@ -263,9 +386,7 @@ export default function SidePanel() {
 
         case 'SESSION_COMPLETED':
           // Save editor HTML before switching to completed view
-          if (editorRef.current) {
-            savedNotesHtml.current = editorRef.current.innerHTML
-          }
+          savedNotesHtml.current = recordingEditorRef.current?.getHTML() ?? ''
           setView('completed')
           setIsStarting(false)
           break
@@ -335,75 +456,61 @@ export default function SidePanel() {
 
   // ── Append new AI note chunks to the editor ─────────────────────────────────
   useEffect(() => {
-    if (!editorRef.current) return
+    if (!recordingEditor) return
     const unprocessed = noteChunks.slice(processedChunksRef.current)
     if (unprocessed.length === 0) return
 
     for (const chunk of unprocessed) {
       const html = markdownToHtml(chunk)
-      const block = document.createElement('div')
-      block.setAttribute('data-ai-block', 'true')
-      block.innerHTML = html
-      editorRef.current.appendChild(block)
-      // Animate in
-      gsap.from(block, { x: -8, opacity: 0, duration: 0.4, ease: 'power2.out' })
+      const pos = recordingEditor.state.doc.content.size
+      recordingEditor.chain().insertContentAt(pos, html).run()
     }
     processedChunksRef.current = noteChunks.length
     notesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [noteChunks])
+  }, [noteChunks, recordingEditor])
 
   // ── Populate completed editor when switching to completed/notes ─────────────
   useEffect(() => {
-    if (view === 'completed' && completedPage === 'notes' && completedEditorRef.current) {
-      completedEditorRef.current.innerHTML = savedNotesHtml.current
+    if (view === 'completed' && completedPage === 'notes' && completedEditor) {
+      completedEditor.commands.setContent(savedNotesHtml.current || '<p></p>')
     }
-  }, [view, completedPage])
+  }, [view, completedPage, completedEditor])
 
   // ── Floating formatting toolbar on text selection ───────────────────────────
-  useEffect(() => {
-    function onSelectionChange() {
-      const sel = window.getSelection()
-      if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-        setToolbar({ visible: false, x: 0, y: 0 })
-        return
-      }
-      const range = sel.getRangeAt(0)
-      const activeEditor = editorRef.current || completedEditorRef.current
-      if (!activeEditor?.contains(range.commonAncestorContainer)) {
-        setToolbar({ visible: false, x: 0, y: 0 })
-        return
-      }
-      const rangeRect = range.getBoundingClientRect()
-      const panelEl = document.querySelector('.side-panel')
-      const panelRect = panelEl?.getBoundingClientRect()
-      if (!panelRect) return
-
-      const toolbarWidth = 220
-      const rawX = rangeRect.left - panelRect.left + rangeRect.width / 2 - toolbarWidth / 2
-      setToolbar({
-        visible: true,
-        x: Math.max(4, Math.min(rawX, panelRect.width - toolbarWidth - 4)),
-        y: rangeRect.top - panelRect.top - 46,
-      })
+  const updateToolbarFromSelection = useCallback(() => {
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+      setToolbar({ visible: false, x: 0, y: 0 })
+      return
     }
-
-    document.addEventListener('selectionchange', onSelectionChange)
-    return () => document.removeEventListener('selectionchange', onSelectionChange)
-  }, [])
-
-  // ── Screenshot click handler (remove buttons inside editors) ───────────────
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      const btn = (e.target as Element).closest('[data-screenshot-remove]')
-      if (btn) {
-        e.preventDefault()
-        const id = (btn as HTMLElement).dataset.screenshotRemove
-        document.querySelector(`[data-screenshot-id="${id}"]`)?.remove()
-      }
+    const range = sel.getRangeAt(0)
+    const recDom = recordingEditor?.view.dom
+    const comDom = completedEditor?.view.dom
+    if (
+      !recDom?.contains(range.commonAncestorContainer) &&
+      !comDom?.contains(range.commonAncestorContainer)
+    ) {
+      setToolbar({ visible: false, x: 0, y: 0 })
+      return
     }
-    document.addEventListener('click', onClick)
-    return () => document.removeEventListener('click', onClick)
-  }, [])
+    const rangeRect = range.getBoundingClientRect()
+    const panelEl = document.querySelector('.side-panel')
+    const panelRect = panelEl?.getBoundingClientRect()
+    if (!panelRect) return
+
+    const toolbarWidth = 220
+    const rawX = rangeRect.left - panelRect.left + rangeRect.width / 2 - toolbarWidth / 2
+    setToolbar({
+      visible: true,
+      x: Math.max(4, Math.min(rawX, panelRect.width - toolbarWidth - 4)),
+      y: rangeRect.top - panelRect.top - 46,
+    })
+  }, [recordingEditor, completedEditor])
+
+  useEffect(() => {
+    document.addEventListener('selectionchange', updateToolbarFromSelection)
+    return () => document.removeEventListener('selectionchange', updateToolbarFromSelection)
+  }, [updateToolbarFromSelection])
 
   // ── GSAP: Idle entrance ─────────────────────────────────────────────────────
   useLayoutEffect(() => {
@@ -525,7 +632,7 @@ export default function SidePanel() {
     setNoteChunks([])
     processedChunksRef.current = 0
     savedNotesHtml.current = ''
-    if (editorRef.current) editorRef.current.innerHTML = ''
+    recordingEditorRef.current?.commands.clearContent()
     setAlerts([])
     setIsPaused(false)
     setIsStarting(false)
@@ -537,48 +644,19 @@ export default function SidePanel() {
     setGenerateError(null)
   }, [])
 
-  // ── Screenshot capture ────────────────────────────────────────────────────
+  // ── Screenshot capture ─────────────────────────────────────────
   const insertScreenshot = useCallback((dataUrl: string) => {
     const t = elapsedAtCapture.current
-    const ssId = `ss-${Date.now()}`
-    const figure = document.createElement('figure')
-    figure.className = 'screenshot-block'
-    figure.setAttribute('data-screenshot-id', ssId)
-    figure.setAttribute('contenteditable', 'false')
-    figure.innerHTML = `
-      <button class="screenshot-remove" data-screenshot-remove="${ssId}" title="Remove screenshot">✕</button>
-      <img src="${dataUrl}" alt="Screenshot" />
-      <figcaption>📷 Screenshot at ${formatTime(t)}</figcaption>
-    `
-
-    const targetEditor = view === 'recording' ? editorRef.current : completedEditorRef.current
+    const targetEditor = view === 'recording' ? recordingEditor : completedEditor
     if (!targetEditor) return
 
-    const sel = window.getSelection()
-    if (sel && sel.rangeCount > 0 && targetEditor.contains(sel.getRangeAt(0).commonAncestorContainer)) {
-      const range = sel.getRangeAt(0)
-      range.collapse(false)
-      range.insertNode(figure)
-      range.collapse(false)
-      // Insert a blank paragraph after figure for continued typing
-      const p = document.createElement('p')
-      p.innerHTML = '<br>'
-      figure.after(p)
-      const newRange = document.createRange()
-      newRange.setStart(p, 0)
-      newRange.collapse(true)
-      sel.removeAllRanges()
-      sel.addRange(newRange)
-    } else {
-      targetEditor.appendChild(figure)
-      const p = document.createElement('p')
-      p.innerHTML = '<br>'
-      targetEditor.appendChild(p)
-    }
+    targetEditor.chain().focus().insertContent({
+      type: 'screenshot',
+      attrs: { src: dataUrl, timestamp: formatTime(t), caption: '' },
+    }).run()
 
-    gsap.from(figure, { scale: 0.95, opacity: 0, duration: 0.35, ease: 'back.out(1.5)' })
-    figure.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [view])
+    setTimeout(() => notesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+  }, [view, recordingEditor, completedEditor])
 
   // Keep the ref current so the message handler (which has [] deps) always calls the latest version
   useEffect(() => {
@@ -589,25 +667,34 @@ export default function SidePanel() {
     chrome.runtime.sendMessage({ type: 'TRIGGER_SCREENSHOT', payload: {}, timestamp: Date.now() })
   }, [])
 
-  // ── Formatting toolbar ────────────────────────────────────────────────────
-  const applyFormat = useCallback((cmd: string, val?: string) => {
-    // eslint-disable-next-line no-void
-    void document.execCommand(cmd, false, val)
+  // ── Formatting toolbar ─────────────────────────────────────────
+  const applyFormat = useCallback((format: string, value?: string) => {
+    const editor = recordingEditor?.isFocused ? recordingEditor
+      : completedEditor?.isFocused ? completedEditor
+      : recordingEditor
+    if (!editor) return
+    const chain = editor.chain().focus()
+    switch (format) {
+      case 'bold': chain.toggleBold().run(); break
+      case 'italic': chain.toggleItalic().run(); break
+      case 'underline': chain.toggleUnderline().run(); break
+      case 'strikeThrough': chain.toggleStrike().run(); break
+      case 'hiliteColor': chain.toggleHighlight({ color: value ?? '' }).run(); break
+      case 'formatBlock':
+        if (value === 'pre') chain.toggleCodeBlock().run()
+        break
+    }
     setToolbar({ visible: false, x: 0, y: 0 })
-  }, [])
+  }, [recordingEditor, completedEditor])
 
   const applyLink = useCallback(() => {
     const url = prompt('Enter URL (include https://):')
     if (url) {
-      document.execCommand('createLink', false, url)
-      const sel = window.getSelection()
-      if (sel?.anchorNode?.parentElement?.tagName === 'A') {
-        (sel.anchorNode.parentElement as HTMLAnchorElement).target = '_blank'
-        ;(sel.anchorNode.parentElement as HTMLAnchorElement).rel = 'noopener noreferrer'
-      }
+      const editor = recordingEditor?.isFocused ? recordingEditor : completedEditor
+      editor?.chain().focus().setLink({ href: url, target: '_blank', rel: 'noopener noreferrer' }).run()
     }
     setToolbar({ visible: false, x: 0, y: 0 })
-  }, [])
+  }, [recordingEditor, completedEditor])
 
   // ── Flashcard / Action Plan generation ────────────────────────────────────
   const handleGenerate = useCallback(() => {
@@ -780,13 +867,7 @@ export default function SidePanel() {
                 <p className="shimmer-hint">AI is extracting key concepts…</p>
               </div>
             )}
-            <div
-              ref={editorRef}
-              className="unified-editor"
-              contentEditable
-              suppressContentEditableWarning
-              data-placeholder="Start typing your notes…"
-            />
+            <EditorContent editor={recordingEditor} />
             <div ref={notesEndRef} />
           </div>
 
@@ -872,12 +953,7 @@ export default function SidePanel() {
                       <p>No notes were generated in this session.</p>
                     </div>
                   )}
-                  <div
-                    ref={completedEditorRef}
-                    className="unified-editor"
-                    contentEditable
-                    suppressContentEditableWarning
-                  />
+                  <EditorContent editor={completedEditor} />
                   <div ref={notesEndRef} />
                 </div>
 

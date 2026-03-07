@@ -2,25 +2,35 @@
    Aesthetic: Terminal Premium — tight, glowing, precise.
    Syne display font, DM Sans body — matches the web app. */
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
 
 :root {
-  --base:     #0a0a0f;
-  --surface:  #111118;
-  --raised:   #18181f;
-  --border:   #25253a;
-  --text:     #eeeef5;
-  --muted:    #7070a0;
-  --dim:      #40405a;
-  --accent:   #6c63ff;
-  --accent-lo: rgba(108, 99, 255, 0.14);
-  --accent-glow: rgba(108, 99, 255, 0.35);
-  --red:      #f04444;
-  --red-lo:   rgba(240, 68, 68, 0.12);
-  --red-glow: rgba(240, 68, 68, 0.4);
-  --green:    #22c55e;
-  --font-display: 'Syne', sans-serif;
-  --font-body:    'DM Sans', sans-serif;
+  --base:          #08080e;
+  --surface:       #0f0f17;
+  --raised:        #16161f;
+  --raised-hi:     #1c1c28;
+  --border:        #1e1e2e;
+  --border-hi:     #2a2a3e;
+  --text:          #e8e8f0;
+  --text-dim:      #9898b8;
+  --muted:         #606088;
+  --dim:           #3a3a55;
+  --accent:        #6c63ff;
+  --accent-hi:     #8b85ff;
+  --accent-lo:     rgba(108, 99, 255, 0.12);
+  --accent-glow:   rgba(108, 99, 255, 0.30);
+  --accent-glow-hi:rgba(108, 99, 255, 0.50);
+  --red:           #f04444;
+  --red-lo:        rgba(240, 68, 68, 0.10);
+  --red-border:    rgba(240, 68, 68, 0.25);
+  --red-glow:      rgba(240, 68, 68, 0.35);
+  --green:         #22c55e;
+  --green-lo:      rgba(34, 197, 94, 0.10);
+  --green-border:  rgba(34, 197, 94, 0.22);
+  --violet:        #a78bfa;
+  --r:             8px;
+  --font-display:  'Syne', sans-serif;
+  --font-body:     'DM Sans', sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -35,6 +45,7 @@ body {
   min-height: 180px;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ── POPUP SHELL ───────────────────────────────────────── */
@@ -43,23 +54,31 @@ body {
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  background: var(--base);
 }
 
-/* Accent gradient top line */
+/* Accent shimmer top line */
 .clarvo-popup::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, var(--accent) 30%, #a78bfa 70%, transparent 100%);
+  height: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 25%,
+    var(--violet) 60%,
+    transparent 100%
+  );
   z-index: 10;
+  opacity: 0.9;
 }
 
-/* ── HEADER ────────────────────────────────────────────── */
+/* ── HEADER ─────────────────────────────────────────────── */
 .popup-header {
   display: flex;
   align-items: center;
-  padding: 13px 14px 11px;
+  padding: 12px 14px 11px;
   gap: 8px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -69,9 +88,9 @@ body {
 .popup-logo {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -79,100 +98,177 @@ body {
 }
 
 .popup-logo-icon {
-  width: 24px; height: 24px;
-  background: var(--accent-lo);
-  border: 1px solid rgba(108,99,255,0.4);
-  border-radius: 6px;
+  width: 26px; height: 26px;
+  background: linear-gradient(135deg, rgba(108,99,255,0.18) 0%, rgba(167,139,250,0.10) 100%);
+  border: 1px solid rgba(108,99,255,0.30);
+  border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px;
   flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(108,99,255,0.15), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
-/* Status pill */
+/* ── STATUS PILLS ───────────────────────────────────────── */
 .popup-status {
-  font-size: 10px;
+  font-family: var(--font-body);
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 99px;
   display: flex;
   align-items: center;
   gap: 5px;
+  flex-shrink: 0;
 }
+
 .popup-status.recording {
   background: var(--red-lo);
   color: var(--red);
-  border: 1px solid rgba(240,68,68,0.25);
-}
-.popup-status.idle {
-  background: rgba(112,112,160,0.1);
-  color: var(--muted);
-  border: 1px solid rgba(112,112,160,0.2);
-}
-.popup-status.done {
-  background: rgba(34,197,94,0.1);
-  color: var(--green);
-  border: 1px solid rgba(34,197,94,0.25);
+  border: 1px solid var(--red-border);
 }
 
-/* Recording dot */
+.popup-status.idle {
+  background: rgba(96,96,136,0.08);
+  color: var(--muted);
+  border: 1px solid rgba(96,96,136,0.18);
+  gap: 3px;
+  padding: 4px 9px;
+}
+
+.popup-status.done {
+  background: var(--green-lo);
+  color: var(--green);
+  border: 1px solid var(--green-border);
+}
+
+/* Recording pulse dot */
 .rec-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
   background: var(--red);
-  animation: blink 1.3s ease-in-out infinite;
+  box-shadow: 0 0 5px var(--red);
+  animation: pulse-rec 1.4s ease-in-out infinite;
   flex-shrink: 0;
 }
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+
+@keyframes pulse-rec {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.85); }
 }
 
-/* ── CONTENT ───────────────────────────────────────────── */
+/* Loading dots */
+.load-dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: bounce-dots 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.load-dot:nth-child(2) { animation-delay: 0.15s; }
+.load-dot:nth-child(3) { animation-delay: 0.30s; }
+
+@keyframes bounce-dots {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
+  40%            { opacity: 1;   transform: scale(1); }
+}
+
+/* ── CONTENT AREA ───────────────────────────────────────── */
 .popup-content {
-  padding: 16px 14px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   background: var(--base);
 }
 
-/* Idle hint */
+/* ── LOADING STATE ──────────────────────────────────────── */
+.popup-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.popup-spinner {
+  width: 22px; height: 22px;
+  border: 2px solid var(--border-hi);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── IDLE / SIGNED-OUT LAYOUT ───────────────────────────── */
 .popup-idle {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .popup-idle-icon {
-  width: 36px; height: 36px;
-  background: var(--accent-lo);
-  border: 1px solid rgba(108,99,255,0.2);
-  border-radius: 10px;
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, rgba(108,99,255,0.14) 0%, rgba(167,139,250,0.07) 100%);
+  border: 1px solid rgba(108,99,255,0.20);
+  border-radius: 11px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
   margin-bottom: 2px;
+  box-shadow: 0 2px 12px rgba(108,99,255,0.08);
+}
+
+.popup-idle-icon--green {
+  background: linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0.06) 100%);
+  border-color: rgba(34,197,94,0.20);
+  box-shadow: 0 2px 12px rgba(34,197,94,0.08);
 }
 
 .popup-hint {
   font-size: 12.5px;
-  color: var(--muted);
-  line-height: 1.65;
+  color: var(--text-dim);
+  line-height: 1.7;
 }
+
 .popup-hint strong {
   color: var(--text);
   font-weight: 600;
 }
 
-/* Recording state */
+.popup-email {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── RECORDING STATE ────────────────────────────────────── */
 .popup-recording {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+.popup-recording-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.popup-session-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .popup-session-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text);
@@ -181,21 +277,12 @@ body {
   white-space: nowrap;
   padding: 9px 11px;
   background: var(--raised);
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  border: 1px solid var(--border-hi);
+  border-radius: 8px;
   line-height: 1;
 }
 
-.popup-session-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 3px;
-}
-
-/* ── BUTTONS ───────────────────────────────────────────── */
+/* ── BUTTONS ────────────────────────────────────────────── */
 .popup-btn {
   display: flex;
   align-items: center;
@@ -203,33 +290,55 @@ body {
   gap: 7px;
   width: 100%;
   height: 40px;
-  border-radius: 8px;
-  border: none;
+  border-radius: var(--r);
+  border: 1px solid transparent;
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  transition: opacity 0.14s, transform 0.1s, box-shadow 0.14s, background 0.14s;
   letter-spacing: -0.01em;
   text-decoration: none;
+  white-space: nowrap;
 }
-.popup-btn:active { transform: scale(0.975); }
 
+.popup-btn:active { transform: scale(0.972); }
+
+/* Primary — purple fill */
 .popup-btn-primary {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 0 16px var(--accent-glow);
+  border-color: var(--accent-hi);
+  box-shadow: 0 0 18px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.08);
 }
-.popup-btn-primary:hover { opacity: 0.9; box-shadow: 0 0 24px var(--accent-glow); }
+.popup-btn-primary:hover {
+  background: var(--accent-hi);
+  box-shadow: 0 0 26px var(--accent-glow-hi);
+}
 
+/* Stop — red ghost */
 .popup-btn-stop {
   background: var(--red-lo);
   color: var(--red);
-  border: 1px solid rgba(240,68,68,0.3);
+  border-color: var(--red-border);
 }
-.popup-btn-stop:hover { background: rgba(240,68,68,0.18); }
+.popup-btn-stop:hover {
+  background: rgba(240, 68, 68, 0.17);
+  box-shadow: 0 0 14px var(--red-glow);
+}
 
-/* ── FOOTER ────────────────────────────────────────────── */
+/* Outline — accent ghost (done state) */
+.popup-btn-outline {
+  background: var(--accent-lo);
+  color: var(--accent-hi);
+  border-color: rgba(108,99,255,0.28);
+}
+.popup-btn-outline:hover {
+  background: rgba(108,99,255,0.18);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+
+/* ── FOOTER ─────────────────────────────────────────────── */
 .popup-footer {
   padding: 9px 14px 11px;
   border-top: 1px solid var(--border);
@@ -240,18 +349,32 @@ body {
 }
 
 .popup-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
   font-size: 11px;
   font-weight: 500;
   color: var(--accent);
   text-decoration: none;
-  opacity: 0.85;
-  transition: opacity 0.15s;
+  opacity: 0.80;
+  transition: opacity 0.14s, color 0.14s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
 }
-.popup-footer-link:hover { opacity: 1; }
+
+.popup-footer-link:hover {
+  opacity: 1;
+  color: var(--accent-hi);
+}
 
 .popup-footer-version {
   font-size: 10px;
   color: var(--dim);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 

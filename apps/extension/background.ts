@@ -769,21 +769,6 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage<unknown>, _sende
         payload: { dataUrl: screenshotPayload.dataUrl },
         timestamp: Date.now(),
       })
-      getState().then(async (s) => {
-        if (!s.sessionId) return
-        const token = await getUserAuthToken()
-        if (!token) return
-
-        await fetch(`${WEB_APP_URL}/api/ai/screenshot`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: s.sessionId,
-            imageDataUrl: screenshotPayload.dataUrl,
-            audioContext: s.accumulatedTranscript.split(' ').slice(-50).join(' '),
-          }),
-        }).catch(() => {/* non-critical */})
-      })
       break
     }
 

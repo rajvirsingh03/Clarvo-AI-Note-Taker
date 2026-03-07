@@ -59,7 +59,7 @@ export function DashboardHeader({ title, userName }: DashboardHeaderProps) {
             background: 'transparent',
             border: '1px solid var(--color-border)',
             borderRadius: '8px',
-            color: 'var(--color-muted)',
+            color: 'var(--color-text-secondary)',
             fontSize: '0.8125rem',
             fontWeight: 500,
             padding: '0 0.875rem',
