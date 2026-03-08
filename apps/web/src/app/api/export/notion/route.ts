@@ -21,8 +21,63 @@ const Schema = z.object({
 
 // ── Notion block builders ──────────────────────────────────────────────────────
 
-function richText(content: string): Array<{ type: 'text'; text: { content: string } }> {
-  return [{ type: 'text', text: { content: content.slice(0, 2000) } }]
+type RichTextObject = {
+  type: 'text'
+  text: { content: string }
+  annotations?: {
+    bold?: boolean
+    italic?: boolean
+    code?: boolean
+    strikethrough?: boolean
+  }
+}
+
+/**
+ * Parse a raw Markdown inline string into Notion rich-text objects so that
+ * **bold**, *italic*, `code`, and ~~strikethrough~~ are rendered natively in Notion.
+ */
+function richText(content: string): RichTextObject[] {
+  const items: RichTextObject[] = []
+  let remaining = content.slice(0, 2000)
+
+  const patterns: Array<{ re: RegExp; key: keyof NonNullable<RichTextObject['annotations']> }> = [
+    { re: /\*\*(.+?)\*\*/, key: 'bold' },
+    { re: /\*([^*]+?)\*/, key: 'italic' },
+    { re: /__(.+?)__/, key: 'bold' },
+    { re: /_([^_]+?)_/, key: 'italic' },
+    { re: /`(.+?)`/, key: 'code' },
+    { re: /~~(.+?)~~/, key: 'strikethrough' },
+  ]
+
+  while (remaining.length > 0) {
+    let earliest: { index: number; len: number; inner: string; key: keyof NonNullable<RichTextObject['annotations']> } | null = null
+
+    for (const { re, key } of patterns) {
+      const m = re.exec(remaining)
+      if (m && (earliest === null || m.index < earliest.index)) {
+        earliest = { index: m.index, len: m[0].length, inner: m[1] ?? '', key }
+      }
+    }
+
+    if (!earliest) {
+      items.push({ type: 'text', text: { content: remaining } })
+      break
+    }
+
+    if (earliest.index > 0) {
+      items.push({ type: 'text', text: { content: remaining.slice(0, earliest.index) } })
+    }
+
+    items.push({
+      type: 'text',
+      text: { content: earliest.inner },
+      annotations: { [earliest.key]: true },
+    })
+
+    remaining = remaining.slice(earliest.index + earliest.len)
+  }
+
+  return items.length > 0 ? items : [{ type: 'text', text: { content: '' } }]
 }
 
 function heading1(text: string): BlockObjectRequest {

@@ -189,6 +189,32 @@ export type Database = {
           }
         ]
       }
+      action_plans: {
+        Row: {
+          id: string
+          session_id: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          content: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          content?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'action_plans_session_id_fkey'
+            columns: ['session_id']
+            referencedRelation: 'sessions'
+            referencedColumns: ['id']
+          }
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {

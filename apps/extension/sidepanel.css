@@ -591,6 +591,7 @@ html, body {
 
 .unified-editor strong {
   font-weight: 700;
+  font-size: 14px;
   color: var(--text);
 }
 
@@ -804,6 +805,10 @@ html, body {
 .tiptap.unified-editor a {
   color: var(--accent);
   text-decoration: underline;
+}
+.tiptap.unified-editor strong {
+  font-weight: 700;
+  font-size: 14px;
 }
 
 .screenshot-remove {

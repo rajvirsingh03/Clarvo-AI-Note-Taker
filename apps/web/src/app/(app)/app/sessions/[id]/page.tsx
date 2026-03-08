@@ -41,7 +41,7 @@ export default async function SessionDetailPage({ params }: Props) {
 
   const { data: session } = await supabase
     .from('sessions')
-    .select(`*, flashcards(*), screenshots(*)`)
+    .select(`*, flashcards(*), screenshots(*), action_plans(*)`)
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -50,6 +50,8 @@ export default async function SessionDetailPage({ params }: Props) {
 
   const flashcards = (session.flashcards as Array<{ id: string; front: string; back: string }>) ?? []
   const screenshots = (session.screenshots as Array<{ id: string; url?: string; created_at: string }>) ?? []
+  const actionPlans = (session.action_plans as Array<{ content: string }>) ?? []
+  const initialActionPlan = actionPlans[0]?.content ?? null
   const watchSeconds = (session as Record<string, unknown>)['watch_time_seconds'] as number ?? session.duration_seconds ?? 0
 
   return (
@@ -121,6 +123,7 @@ export default async function SessionDetailPage({ params }: Props) {
           notes={session.notes}
           flashcards={flashcards}
           sessionId={session.id}
+          initialActionPlan={initialActionPlan}
         />
 
         {/* Right sidebar */}

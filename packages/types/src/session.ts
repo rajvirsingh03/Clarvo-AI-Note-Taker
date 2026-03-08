@@ -34,9 +34,17 @@ export interface Screenshot {
   created_at: string
 }
 
+export interface ActionPlanRecord {
+  id: string
+  session_id: string
+  content: string
+  created_at: string
+}
+
 export interface SessionWithRelations extends Session {
   flashcards: Flashcard[]
   screenshots: Screenshot[]
+  action_plans: ActionPlanRecord[]
 }
 
 // Import from ai.ts to avoid circular deps
