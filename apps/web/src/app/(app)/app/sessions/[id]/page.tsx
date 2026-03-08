@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { SessionNotesViewer } from './SessionNotesViewer'
+import { ExportToNotionButton } from '@/components/ExportToNotionButton'
 
 export const metadata: Metadata = { title: 'Session — Clarvo AI' }
 
@@ -104,14 +105,11 @@ export default async function SessionDetailPage({ params }: Props) {
 
           {/* Export to Notion */}
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <button
-              className="btn btn-secondary"
-              style={{ fontSize: '0.875rem' }}
-              disabled
-              title="Notion export coming soon"
-            >
-              📝 Export to Notion
-            </button>
+            <ExportToNotionButton
+              sessionId={session.id}
+              sessionTitle={session.title ?? 'Untitled Session'}
+              videoUrl={session.video_url}
+            />
           </div>
         </div>
       </div>

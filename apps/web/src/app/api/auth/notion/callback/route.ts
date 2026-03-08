@@ -57,6 +57,7 @@ export async function GET(request: Request) {
       .update({
         notion_access_token: tokenData.access_token,
         notion_workspace_id: tokenData.workspace_id,
+        notion_workspace_name: tokenData.workspace_name ?? null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', user.id)

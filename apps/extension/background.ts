@@ -288,7 +288,7 @@ async function startSession(
     const res = await fetch(`${WEB_APP_URL}/api/sessions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoUrl: payload.videoSrc, videoTitle: payload.pageTitle }),
+      body: JSON.stringify({ title: payload.pageTitle,videoUrl: payload.videoSrc, videoTitle: payload.pageTitle }),
     })
 
     if (!res.ok) {
@@ -437,6 +437,9 @@ async function stopSession(): Promise<void> {
     _isStoppingSession = false
     return
   }
+
+  // Notify the side panel immediately so it can show a processing loader
+  broadcastToSidePanel({ type: 'SESSION_STOPPING', payload: {}, timestamp: Date.now() })
 
   console.log('[Clarvo background] ⏹ stopSession started (sessionId:', s.sessionId, 'state:', s.state, ')')
 

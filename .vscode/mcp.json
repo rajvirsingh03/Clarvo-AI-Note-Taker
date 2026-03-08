@@ -40,11 +40,9 @@
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.0.1-seed"
 		},
-		"makenotion/notion-mcp-server": {
+		"notion": {
 			"type": "http",
-			"url": "https://mcp.notion.com/sse",
-			"gallery": "https://api.mcp.github.com",
-			"version": "1.0.0"
+			"url": "https://mcp.notion.com/mcp"
 		}
 	},
 	"inputs": [

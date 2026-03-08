@@ -397,6 +397,34 @@ html, body {
   flex: 1;
   overflow: hidden;
   min-height: 0;
+  position: relative;
+}
+
+/* Processing overlay — shown during final flush+LLM after video ends */
+.sp-processing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(12, 10, 20, 0.88);
+  backdrop-filter: blur(4px);
+}
+.sp-processing-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(167, 139, 250, 0.25);
+  border-top-color: #a78bfa;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.sp-processing-text {
+  font-size: 13px;
+  color: var(--text-muted, #9ca3af);
+  letter-spacing: 0.02em;
 }
 
 /* Video info bar */
@@ -1039,6 +1067,12 @@ html, body {
   background: var(--surface);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+.sp-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
 .sp-action-btn {

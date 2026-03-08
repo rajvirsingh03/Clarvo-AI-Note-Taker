@@ -38,7 +38,7 @@ export default async function AppDashboardPage() {
       .limit(50),
     supabase
       .from('users')
-      .select('full_name, billing_tier, free_minutes_used, notion_workspace_name')
+      .select('full_name, billing_tier, free_minutes_used, notion_access_token, notion_workspace_name')
       .eq('id', user.id)
       .single(),
   ])
@@ -258,10 +258,10 @@ export default async function AppDashboardPage() {
               >
                 <span>🔌</span> Install Extension
               </a>
-              {profile?.notion_workspace_name ? (
+              {profile?.notion_access_token ? (
                 <div style={{ padding: 'var(--space-3)', background: 'var(--color-surface-raised)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '2px' }}>Notion Connected</div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>{profile.notion_workspace_name}</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>{profile.notion_workspace_name ?? 'Workspace'}</div>
                 </div>
               ) : (
                 <a
@@ -292,8 +292,8 @@ export default async function AppDashboardPage() {
               <li style={{ fontSize: '0.8125rem', color: totalFlashcards > 0 ? '#22c55e' : 'var(--color-text-secondary)', lineHeight: 1.5 }}>
                 {totalFlashcards > 0 ? '✅' : '2.'} Review flashcards
               </li>
-              <li style={{ fontSize: '0.8125rem', color: profile?.notion_workspace_name ? '#22c55e' : 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-                {profile?.notion_workspace_name ? '✅' : '3.'} Connect Notion
+              <li style={{ fontSize: '0.8125rem', color: profile?.notion_access_token ? '#22c55e' : 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                {profile?.notion_access_token ? '✅' : '3.'} Connect Notion
               </li>
             </ol>
           </div>

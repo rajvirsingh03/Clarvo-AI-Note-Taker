@@ -18,6 +18,7 @@ export type Database = {
           notion_access_token: string | null
           notion_workspace_id: string | null
           notion_workspace_name: string | null
+          notion_database_id: string | null
           created_at: string
           updated_at: string
         }
@@ -33,6 +34,7 @@ export type Database = {
           notion_access_token?: string | null
           notion_workspace_id?: string | null
           notion_workspace_name?: string | null
+          notion_database_id?: string | null
         }
         Update: {
           id?: string
@@ -46,6 +48,7 @@ export type Database = {
           notion_access_token?: string | null
           notion_workspace_id?: string | null
           notion_workspace_name?: string | null
+          notion_database_id?: string | null
           updated_at?: string
         }
         Relationships: []

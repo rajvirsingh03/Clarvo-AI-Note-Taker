@@ -254,9 +254,13 @@ export default function SidePanel() {
   const [actionItems, setActionItems] = useState<ActionItem[]>([])
   const [currentCardIndex, setCurrentCardIndex] = useState(0)
   const [isCardFlipped, setIsCardFlipped] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerated, setIsGenerated] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
+  const [isExportingNotion, setIsExportingNotion] = useState(false)
+  const [notionExportUrl, setNotionExportUrl] = useState<string | null>(null)
+  const [notionExportError, setNotionExportError] = useState<string | null>(null)
   const [newActionText, setNewActionText] = useState('')
   // Floating toolbar
   const [toolbar, setToolbar] = useState<{ visible: boolean; x: number; y: number }>({ visible: false, x: 0, y: 0 })
@@ -269,6 +273,8 @@ export default function SidePanel() {
   const completedRef = useRef<HTMLDivElement>(null)
   const waveRef = useRef<HTMLDivElement>(null)
   const notesEndRef = useRef<HTMLDivElement>(null)
+  const recordingScrollRef = useRef<HTMLDivElement>(null)
+  const completedScrollRef = useRef<HTMLDivElement>(null)
   const waveTimeline = useRef<gsap.core.Timeline | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Persisted notes HTML + chunk tracking
@@ -384,9 +390,15 @@ export default function SidePanel() {
           break
         }
 
+        case 'SESSION_STOPPING':
+          // Background is processing (flush + final LLM) — show loader over recording view
+          setIsProcessing(true)
+          break
+
         case 'SESSION_COMPLETED':
           // Save editor HTML before switching to completed view
           savedNotesHtml.current = recordingEditorRef.current?.getHTML() ?? ''
+          setIsProcessing(false)
           setView('completed')
           setIsStarting(false)
           break
@@ -578,6 +590,31 @@ export default function SidePanel() {
     else waveTimeline.current?.resume()
   }, [isPaused])
 
+  // ── Auto-scroll scroll areas during node drag (screenshot drag) ──────────────
+  useEffect(() => {
+    const ZONE = 60
+    const SPEED = 10
+    const attachDragScroll = (el: HTMLDivElement | null) => {
+      if (!el) return () => {}
+      const onDragOver = (e: DragEvent) => {
+        const rect = el.getBoundingClientRect()
+        const y = e.clientY
+        const distTop = y - rect.top
+        const distBottom = rect.bottom - y
+        if (distTop < ZONE) {
+          el.scrollTop -= SPEED * (1 - distTop / ZONE)
+        } else if (distBottom < ZONE) {
+          el.scrollTop += SPEED * (1 - distBottom / ZONE)
+        }
+      }
+      el.addEventListener('dragover', onDragOver)
+      return () => el.removeEventListener('dragover', onDragOver)
+    }
+    const cleanupRecording = attachDragScroll(recordingScrollRef.current)
+    const cleanupCompleted = attachDragScroll(completedScrollRef.current)
+    return () => { cleanupRecording(); cleanupCompleted() }
+  }, [view])
+
   // ── GSAP: Completed entrance ─────────────────────────────────────────────────
   useLayoutEffect(() => {
     if (view !== 'completed' || !completedRef.current) return
@@ -703,6 +740,46 @@ export default function SidePanel() {
     setGenerateError(null)
     chrome.runtime.sendMessage({ type: 'GENERATE_FLASHCARDS_ACTION_PLAN', payload: {}, timestamp: Date.now() })
   }, [isGenerating])
+
+  // ── Export to Notion ───────────────────────────────────────────────────────
+  const handleExportToNotion = useCallback(async () => {
+    if (!sessionId || isExportingNotion) return
+    setIsExportingNotion(true)
+    setNotionExportError(null)
+    setNotionExportUrl(null)
+
+    const result = await chrome.storage.local.get('clarvoAuthToken')
+    const token = result['clarvoAuthToken'] as string | undefined
+    if (!token) {
+      setNotionExportError('Not signed in. Please sign in via the web app.')
+      setIsExportingNotion(false)
+      return
+    }
+
+    let data: { success?: boolean; notionPageUrl?: string; error?: string; notionRequired?: boolean }
+    try {
+      const res = await fetch(`${WEB_APP_URL}/api/export/notion`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+      data = await res.json()
+    } catch {
+      setNotionExportError('Network error. Please try again.')
+      setIsExportingNotion(false)
+      return
+    }
+
+    if (data.notionRequired) {
+      chrome.tabs.create({ url: `${WEB_APP_URL}/connect-notion?return_to=${encodeURIComponent(`/app/sessions/${sessionId}`)}` })
+    } else if (data.success && data.notionPageUrl) {
+      setNotionExportUrl(data.notionPageUrl)
+      chrome.tabs.create({ url: data.notionPageUrl })
+    } else {
+      setNotionExportError(data.error ?? 'Export failed. Please try again.')
+    }
+    setIsExportingNotion(false)
+  }, [sessionId, isExportingNotion])
 
   // ── Action plan handlers ───────────────────────────────────────────────────
   const toggleActionItem = useCallback((id: number) => {
@@ -851,8 +928,16 @@ export default function SidePanel() {
             </div>
           </div>
 
+          {/* Processing overlay — shown while background flushes and runs final LLM */}
+          {isProcessing && (
+            <div className="sp-processing-overlay">
+              <div className="sp-processing-spinner" />
+              <p className="sp-processing-text">Processing session notes…</p>
+            </div>
+          )}
+
           {/* Unified editor area */}
-          <div className="sp-scroll-area sp-editor-area">
+          <div className="sp-scroll-area sp-editor-area" ref={recordingScrollRef}>
             {noteChunks.length === 0 && !isExtracting && (
               <div className="editor-placeholder">
                 <p>AI notes will appear here as the session progresses.</p>
@@ -947,7 +1032,7 @@ export default function SidePanel() {
                   </button>
                 </div>
 
-                <div className="sp-scroll-area sp-editor-area">
+                <div className="sp-scroll-area sp-editor-area" ref={completedScrollRef}>
                   {savedNotesHtml.current === '' && (
                     <div className="editor-placeholder">
                       <p>No notes were generated in this session.</p>
@@ -958,35 +1043,46 @@ export default function SidePanel() {
                 </div>
 
                 <div className="sp-action-bar">
-                  <a
-                    className="sp-action-btn sp-action-primary"
-                    href={`${WEB_APP_URL}/sessions/${sessionId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View Dashboard →
-                  </a>
-                  <button
-                    className={`sp-action-btn sp-action-secondary ${isGenerating ? 'loading' : ''}`}
-                    onClick={handleGenerate}
-                    disabled={isGenerating || isGenerated}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <span className="sp-spinner" />
-                        Generating…
-                      </>
-                    ) : (
-                      '✦ Generate Flashcards & Action Plan'
-                    )}
-                  </button>
+                  <div className="sp-action-grid">
+                    <a
+                      className="sp-action-btn sp-action-primary"
+                      href={`${WEB_APP_URL}/sessions/${sessionId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View Dashboard →
+                    </a>
+                    <button
+                      className={`sp-action-btn sp-action-secondary ${isGenerating ? 'loading' : ''}`}
+                      onClick={handleGenerate}
+                      disabled={isGenerating || isGenerated}
+                    >
+                      {isGenerating ? (
+                        <><span className="sp-spinner" />Generating…</>
+                      ) : (
+                        '✦ Flashcards'
+                      )}
+                    </button>
+                    <button
+                      className={`sp-action-btn sp-action-ghost ${isExportingNotion ? 'loading' : ''}`}
+                      onClick={handleExportToNotion}
+                      disabled={isExportingNotion || !sessionId}
+                      title="Export notes, flashcards & action plan to Notion"
+                    >
+                      {isExportingNotion ? (
+                        <><span className="sp-spinner" />Exporting…</>
+                      ) : notionExportUrl ? (
+                        '✓ Notion ↗'
+                      ) : (
+                        'Export to Notion'
+                      )}
+                    </button>
+                    <button className="sp-action-btn sp-action-ghost" onClick={handleClose}>
+                      Close
+                    </button>
+                  </div>
                   {generateError && <p className="sp-generate-error">{generateError}</p>}
-                  <button className="sp-action-btn sp-action-ghost sp-action-disabled" disabled title="Coming soon">
-                    Export to Notion
-                  </button>
-                  <button className="sp-action-btn sp-action-ghost" onClick={handleClose}>
-                    Close
-                  </button>
+                  {notionExportError && <p className="sp-generate-error">{notionExportError}</p>}
                 </div>
               </>
             )}
