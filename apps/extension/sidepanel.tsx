@@ -255,6 +255,7 @@ export default function SidePanel() {
   const [currentCardIndex, setCurrentCardIndex] = useState(0)
   const [isCardFlipped, setIsCardFlipped] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerated, setIsGenerated] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
@@ -659,6 +660,10 @@ export default function SidePanel() {
     setAlerts((prev) => prev.filter((a) => a.id !== id))
   }, [])
 
+  const handleDiscardSession = useCallback(() => {
+    setShowDiscardConfirm(true)
+  }, [])
+
   const handleClose = useCallback(() => {
     setView('idle')
     setSessionId(null)
@@ -679,6 +684,17 @@ export default function SidePanel() {
     setIsGenerating(false)
     setIsGenerated(false)
     setGenerateError(null)
+  }, [])
+
+  const handleConfirmDiscard = useCallback(() => {
+    setShowDiscardConfirm(false)
+    handleClose()  // Optimistic — reset UI immediately
+    // Fire-and-forget: background handles billing update + server delete
+    chrome.runtime.sendMessage({ type: 'DISCARD_SESSION', payload: {}, timestamp: Date.now() })
+  }, [handleClose])
+
+  const handleCancelDiscard = useCallback(() => {
+    setShowDiscardConfirm(false)
   }, [])
 
   // ── Screenshot capture ─────────────────────────────────────────
@@ -956,13 +972,15 @@ export default function SidePanel() {
             <div ref={notesEndRef} />
           </div>
 
-          {/* Bottom bar with screenshot button */}
+          {/* Bottom bar with screenshot button + discard */}
           <div className="sp-bottom-bar">
-            <button className="sp-screenshot-btn" onClick={handleScreenshotBtn} title="Capture screenshot (Ctrl+K)">
+            <button className="sp-screenshot-btn" onClick={handleScreenshotBtn} title="Capture screenshot (Ctrl+K)" disabled={isProcessing}>
               <span className="screenshot-icon">📷</span>
               Screenshot
             </button>
-            <span className="sp-shortcut-hint">Ctrl+K</span>
+            <button className="sp-discard-btn" onClick={handleDiscardSession} disabled={isProcessing}>
+              🗑 Discard
+            </button>
           </div>
         </div>
       )}
@@ -1046,7 +1064,7 @@ export default function SidePanel() {
                   <div className="sp-action-grid">
                     <a
                       className="sp-action-btn sp-action-primary"
-                      href={`${WEB_APP_URL}/sessions/${sessionId}`}
+                      href={`${WEB_APP_URL}/app/sessions/${sessionId}`}
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -1236,6 +1254,27 @@ export default function SidePanel() {
           <button className="ft-btn ft-highlight" title="Highlight" onMouseDown={() => applyFormat('hiliteColor', 'rgba(108,99,255,0.25)')}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M4 20h16v2H4zM18.5 4.5l-13 13-2 4.5 4.5-2 13-13-2.5-2.5zM14.5 2l2.5 2.5-1 1L13.5 3z"/></svg>
           </button>
+        </div>
+      )}
+
+      {/* ── Discard confirmation dialog ── */}
+      {showDiscardConfirm && (
+        <div className="sp-confirm-backdrop" onClick={handleCancelDiscard}>
+          <div className="sp-confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="sp-confirm-icon">🗑</div>
+            <h3 className="sp-confirm-title">Discard this session?</h3>
+            <p className="sp-confirm-body">
+              Your notes and transcript will be permanently deleted. Watch time will still be counted.
+            </p>
+            <div className="sp-confirm-actions">
+              <button className="sp-confirm-cancel" onClick={handleCancelDiscard}>
+                Keep Recording
+              </button>
+              <button className="sp-confirm-delete" onClick={handleConfirmDiscard}>
+                Discard Session
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

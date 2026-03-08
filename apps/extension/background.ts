@@ -497,32 +497,71 @@ async function stopSession(): Promise<void> {
   }
 }
 
-// ── Pause / Resume ───────────────────────────────────────────────────────────
+async function discardSession(): Promise<void> {
+  if (_isStoppingSession) return
+  _isStoppingSession = true
 
+  const s = await getState()
+  if (!s.sessionId) {
+    _isStoppingSession = false
+    return
+  }
+
+  console.log('[Clarvo background] 🗑 discardSession started (sessionId:', s.sessionId, ')')
+
+  try {
+    await accumulateWatchTime()
+
+    stopExtractionTimer()
+    if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null }
+
+    // Stop audio capture (no transcript flush needed — we discard everything)
+    const captureStopped = waitForCaptureStopped(5000)
+    chrome.runtime.sendMessage({ type: 'STOP_AUDIO_CAPTURE', payload: {}, timestamp: Date.now() })
+      .catch(() => { /* offscreen may already be closed */ })
+    await captureStopped
+
+    const finalState = await getState()
+    const watchTimeSeconds = Math.round(finalState.watchTimeSeconds || 0)
+
+    // Bill the user for any watched time, then delete the session
+    if (watchTimeSeconds > 0) {
+      await updateSessionOnServer(s.sessionId, {
+        state: 'COMPLETED',
+        watch_time_seconds: watchTimeSeconds,
+      })
+    }
+
+    const token = await getUserAuthToken()
+    if (token) {
+      await fetch(`${WEB_APP_URL}/api/sessions/${s.sessionId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch((err) => console.error('[Clarvo background] Failed to delete session:', err))
+    }
+
+    await chrome.storage.local.remove('clarvoSession')
+    broadcastToSidePanel({ type: 'SESSION_DISCARDED', payload: {}, timestamp: Date.now() })
+    console.log('[Clarvo background] ✅ Session discarded (watchTime:', watchTimeSeconds, 's)')
+
+    await destroyOffscreenDocument()
+  } finally {
+    _pauseSource = null
+    activeTabId = null
+    _isStoppingSession = false
+  }
+}
+
+// ── Pause / Resume ───────────────────────────────────────────────────────────
 async function pauseSession(): Promise<void> {
-  if (_isStoppingSession) return  // Don't pause if we're already stopping (e.g. pause fires right before ended)
+  if (_isStoppingSession) return
 
   const s = await getState()
   if (!s.sessionId || s.state !== 'RECORDING') return
 
   console.log('[Clarvo background] ⏸ Pausing session (source:', _pauseSource ?? 'unknown', ')')
 
-  // Accumulate watch time up to this pause
-  await accumulateWatchTime()
-
-  // Pause audio capture in offscreen (saves Deepgram credits)
-  chrome.runtime.sendMessage({ type: 'PAUSE_AUDIO_CAPTURE', timestamp: Date.now() }).catch(() => {})
-
-  // Pause periodic extraction while the session is paused.
-  stopExtractionTimer()
-
-  // Clear inactivity timer while paused
-  if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null }
-
-  // Update DB state to PAUSED
-  await updateSessionOnServer(s.sessionId, { state: 'PAUSED' })
-  await setState({ state: 'PAUSED' })
-
+  // 1. OPTIMISTIC UI UPDATE: Tell the side panel to update instantly
   broadcastToSidePanel({
     type: 'SESSION_STATE_CHANGED',
     payload: { sessionId: s.sessionId, previousState: 'RECORDING', newState: 'PAUSED' as SessionState },
@@ -533,6 +572,16 @@ async function pauseSession(): Promise<void> {
     payload: { sessionId: s.sessionId, previousState: 'RECORDING', newState: 'PAUSED' as SessionState },
     timestamp: Date.now(),
   })
+
+  // 2. Handle the local extension state and audio capture
+  await accumulateWatchTime()
+  chrome.runtime.sendMessage({ type: 'PAUSE_AUDIO_CAPTURE', timestamp: Date.now() }).catch(() => {})
+  stopExtractionTimer()
+  if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null }
+  
+  // 3. Fire-and-forget the database and storage updates (do NOT use await here)
+  updateSessionOnServer(s.sessionId, { state: 'PAUSED' })
+  setState({ state: 'PAUSED' })
 }
 
 async function resumeSession(): Promise<void> {
@@ -541,16 +590,7 @@ async function resumeSession(): Promise<void> {
 
   console.log('[Clarvo background] ▶ Resuming session')
 
-  // Resume audio capture in offscreen
-  chrome.runtime.sendMessage({ type: 'RESUME_AUDIO_CAPTURE', timestamp: Date.now() }).catch(() => {})
-
-  // Update DB state back to RECORDING
-  await updateSessionOnServer(s.sessionId, { state: 'RECORDING' })
-  await setState({ state: 'RECORDING' })
-
-  // Restart watch time tracking
-  playStartedAt = Date.now()
-
+  // 1. OPTIMISTIC UI UPDATE: Tell the side panel to update instantly
   broadcastToSidePanel({
     type: 'SESSION_STATE_CHANGED',
     payload: { sessionId: s.sessionId, previousState: 'PAUSED', newState: 'RECORDING' as SessionState },
@@ -562,8 +602,15 @@ async function resumeSession(): Promise<void> {
     timestamp: Date.now(),
   })
 
+  // 2. Handle the local extension state and audio capture
+  chrome.runtime.sendMessage({ type: 'RESUME_AUDIO_CAPTURE', timestamp: Date.now() }).catch(() => {})
+  playStartedAt = Date.now()
   startExtractionTimer()
   resetInactivityTimer()
+
+  // 3. Fire-and-forget the database and storage updates (do NOT use await here)
+  updateSessionOnServer(s.sessionId, { state: 'RECORDING' })
+  setState({ state: 'RECORDING' })
 }
 
 // ── 3-Minute Extraction Cycle ────────────────────────────────────────────────
@@ -693,6 +740,10 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage<unknown>, _sende
     // ── Session stop ──────────────────────────────────────────────────────────
     case 'STOP_SESSION':
       stopSession().then(() => sendResponse({ ok: true }))
+      return true
+
+    case 'DISCARD_SESSION':
+      discardSession().then(() => sendResponse({ ok: true }))
       return true
 
     case 'PAUSE_SESSION':

@@ -26,6 +26,7 @@ import type {
 
 let activeVideo: HTMLVideoElement | null = null
 let sessionActive = false
+let pauseTimeout: ReturnType<typeof setTimeout> | null = null
 
 // ── Message helpers ───────────────────────────────────────────────────────────
 
@@ -52,17 +53,46 @@ function attachVideoListeners(video: HTMLVideoElement): void {
     if (!sessionActive) return
     sendMessage({ type: 'VIDEO_PLAY', payload: { videoSrc: video.src || video.currentSrc }, timestamp: Date.now() })
   })
+  // video.addEventListener('pause', () => {
+  //   console.log('[Clarvo content] ⏸ Video pause event (sessionActive:', sessionActive, ', ended:', video.ended, ')')
+  //   if (!sessionActive) return
+  //   // Browsers fire 'pause' right before 'ended' — skip to avoid a
+  //   // spurious pauseSession() that races with stopSession().
+  //   if (video.ended) {
+  //     console.log('[Clarvo content] ⏸ Already ended — skipping pause (ended handler will fire)')
+  //     return
+  //   }
+  //   console.log('[Clarvo content] ⏸ Sending VIDEO_PAUSE')
+  //   sendMessage({ type: 'VIDEO_PAUSE', payload: { videoSrc: video.src || video.currentSrc }, timestamp: Date.now() })
+  // })
+  video.addEventListener('seeking', () => {
+    if (pauseTimeout) {
+      clearTimeout(pauseTimeout)
+      pauseTimeout = null
+      console.log('[Clarvo content] ⏭ Seeking detected — cancelled pending pause')
+    }
+  })
   video.addEventListener('pause', () => {
-    console.log('[Clarvo content] ⏸ Video pause event (sessionActive:', sessionActive, ', ended:', video.ended, ')')
+    console.log('[Clarvo content] ⏸ Video pause event fired (sessionActive:', sessionActive, ', ended:', video.ended, ')')
     if (!sessionActive) return
-    // Browsers fire 'pause' right before 'ended' — skip to avoid a
-    // spurious pauseSession() that races with stopSession().
+    
     if (video.ended) {
-      console.log('[Clarvo content] ⏸ Already ended — skipping pause (ended handler will fire)')
+      console.log('[Clarvo content] ⏸ Already ended — skipping pause')
       return
     }
-    console.log('[Clarvo content] ⏸ Sending VIDEO_PAUSE')
-    sendMessage({ type: 'VIDEO_PAUSE', payload: { videoSrc: video.src || video.currentSrc }, timestamp: Date.now() })
+
+    if (pauseTimeout) clearTimeout(pauseTimeout)
+
+    // Wait 200ms before actually sending the pause message.
+    // If this was a scrub/seek, a 'play' or 'seeking' event will fire 
+    // within this window and cancel the timeout.
+    pauseTimeout = setTimeout(() => {
+      // Double check it's still paused just to be safe
+      if (video.paused && !video.seeking) {
+        console.log('[Clarvo content] ⏸ Sending VIDEO_PAUSE (user actually paused)')
+        sendMessage({ type: 'VIDEO_PAUSE', payload: { videoSrc: video.src || video.currentSrc }, timestamp: Date.now() })
+      }
+    }, 200)
   })
   video.addEventListener('ended', () => {
     console.log('[Clarvo content] 🏁 Video ended event (sessionActive:', sessionActive, ')')

@@ -40,6 +40,8 @@ export type ExtensionMessageType =
   | 'GENERATE_FLASHCARDS_ACTION_PLAN' // side panel → background: trigger AI generation
   | 'FLASHCARDS_ACTION_PLAN_READY'    // background → side panel: generation succeeded
   | 'GENERATE_FLASHCARDS_ACTION_PLAN_ERROR' // background → side panel: generation failed
+  | 'DISCARD_SESSION'   // side panel → background: stop and delete session (no LLM)
+  | 'SESSION_DISCARDED' // background → side panel: discard complete, reset to idle
 
 export interface ExtensionMessage<T = unknown> {
   type: ExtensionMessageType

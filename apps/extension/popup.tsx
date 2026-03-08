@@ -237,7 +237,7 @@ function Popup() {
             <p className="popup-hint">Session complete! Open the dashboard to view your notes.</p>
             <div style={{display: 'flex', gap: '8px', width: '100%'}}>
               <a
-                href={`${WEB_APP_URL}/app`}
+                href={`${WEB_APP_URL}/app/sessions/${sessionState?.sessionId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="popup-btn popup-btn-outline"
