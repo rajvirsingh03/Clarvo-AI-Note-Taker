@@ -198,15 +198,43 @@ const ScreenshotExtension = Node.create({
       src: { default: null },
       timestamp: { default: '' },
       caption: { default: '' },
+      id: { default: '' }, // unique ID for tracking background upload
     }
   },
 
   parseHTML() {
-    return [{ tag: 'figure[data-type="screenshot"]' }]
+    return [
+      {
+        tag: 'figure[data-type="screenshot"]',
+        getAttrs: (dom: HTMLElement | string) => {
+          if (typeof dom === 'string') return {}
+          const img = dom.querySelector('img')
+          return {
+            // Support both new format (img child) and legacy format (attrs on figure)
+            src: img?.getAttribute('src') ?? dom.getAttribute('src') ?? null,
+            timestamp: dom.getAttribute('data-timestamp') ?? dom.getAttribute('timestamp') ?? '',
+            caption: img?.getAttribute('alt') ?? dom.getAttribute('caption') ?? '',
+            id: dom.getAttribute('data-id') ?? dom.getAttribute('id') ?? '',
+          }
+        },
+      },
+    ]
   },
 
   renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, unknown> }) {
-    return ['figure', mergeAttributes(HTMLAttributes, { 'data-type': 'screenshot' })]
+    const { src, timestamp, caption, id, ...rest } = HTMLAttributes as {
+      src: string; timestamp: string; caption: string; id: string;
+      [key: string]: unknown
+    }
+    return [
+      'figure',
+      mergeAttributes(rest, {
+        'data-type': 'screenshot',
+        'data-timestamp': timestamp,
+        'data-id': id,
+      }),
+      ['img', { src, alt: caption || 'Screenshot' }],
+    ]
   },
 
   addNodeView() {
@@ -302,9 +330,18 @@ export default function SidePanel() {
       attributes: { class: 'unified-editor' },
     },
   })
-  // Stable ref so message handler ([] deps) can access current recording editor
+  // Stable refs so message handler ([] deps) can access current editors
   const recordingEditorRef = useRef(recordingEditor)
   useEffect(() => { recordingEditorRef.current = recordingEditor }, [recordingEditor])
+  const completedEditorRef = useRef(completedEditor)
+  useEffect(() => { completedEditorRef.current = completedEditor }, [completedEditor])
+
+  // Stable ref for sessionId (used in callbacks with [] deps)
+  const sessionIdRef = useRef<string | null>(null)
+  useEffect(() => { sessionIdRef.current = sessionId }, [sessionId])
+
+  // Track in-flight screenshot uploads so SESSION_COMPLETED can wait for them
+  const pendingUploadsRef = useRef<Set<string>>(new Set())
 
   // ── Restore persisted state on mount ────────────────────────────────────────
   useEffect(() => {
@@ -367,6 +404,7 @@ export default function SidePanel() {
               setNoteChunks([])
               processedChunksRef.current = 0
               savedNotesHtml.current = ''
+              pendingUploadsRef.current.clear()
               recordingEditorRef.current?.commands.clearContent()
               setAlerts([])
             }
@@ -396,13 +434,42 @@ export default function SidePanel() {
           setIsProcessing(true)
           break
 
-        case 'SESSION_COMPLETED':
-          // Save editor HTML before switching to completed view
-          savedNotesHtml.current = recordingEditorRef.current?.getHTML() ?? ''
-          setIsProcessing(false)
-          setView('completed')
-          setIsStarting(false)
+        case 'SESSION_COMPLETED': {
+          const p = msg.payload as { sessionId: string }
+
+          // Wait for any in-flight screenshot uploads (max 8 s) so the HTML
+          // saved to the DB contains public https:// URLs, not base64 blobs.
+          const waitAndSave = async () => {
+            const deadline = Date.now() + 8000
+            while (pendingUploadsRef.current.size > 0 && Date.now() < deadline) {
+              await new Promise((r) => setTimeout(r, 200))
+            }
+
+            const finalHtml = recordingEditorRef.current?.getHTML() ?? ''
+            savedNotesHtml.current = finalHtml
+            setIsProcessing(false)
+            setView('completed')
+            setIsStarting(false)
+
+            // Persist the rich HTML (screenshots + manual edits + AI notes) to DB
+            chrome.storage.local.get('clarvoAuthToken').then((result) => {
+              const token = result['clarvoAuthToken'] as string | undefined
+              if (token && p.sessionId) {
+                fetch(`${WEB_APP_URL}/api/sessions/${p.sessionId}`, {
+                  method: 'PUT',
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ notes: finalHtml }),
+                }).catch((err) => console.error('[SidePanel] Failed to save final notes:', err))
+              }
+            })
+          }
+
+          void waitAndSave()
           break
+        }
 
         case 'SCREENSHOT_READY': {
           const p = msg.payload as { dataUrl: string }
@@ -703,12 +770,54 @@ export default function SidePanel() {
     const targetEditor = view === 'recording' ? recordingEditor : completedEditor
     if (!targetEditor) return
 
+    // Unique ID for tracking this screenshot's upload lifecycle
+    const ssId = `ss-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+
+    // ➊ Insert immediately with base64 — instant feedback, no UX delay
     targetEditor.chain().focus().insertContent({
       type: 'screenshot',
-      attrs: { src: dataUrl, timestamp: formatTime(t), caption: '' },
+      attrs: { src: dataUrl, timestamp: formatTime(t), caption: '', id: ssId },
     }).run()
 
     setTimeout(() => notesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+
+    // ➋ Upload in background — swap base64 for a public Supabase URL
+    const currentSessionId = sessionIdRef.current
+    if (!currentSessionId) return
+
+    pendingUploadsRef.current.add(ssId)
+    chrome.storage.local.get('clarvoAuthToken').then((result) => {
+      const token = result['clarvoAuthToken'] as string | undefined
+      if (!token) { pendingUploadsRef.current.delete(ssId); return }
+
+      fetch(`${WEB_APP_URL}/api/upload-screenshot`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataUrl, sessionId: currentSessionId, screenshotId: ssId }),
+      })
+        .then((r) => r.json())
+        .then(({ url }: { url?: string }) => {
+          pendingUploadsRef.current.delete(ssId)
+          if (!url) return
+          // Update the node's src in whichever editor contains it
+          for (const ed of [recordingEditorRef.current, completedEditorRef.current]) {
+            if (!ed) continue
+            let found = false
+            ed.state.doc.descendants((node, pos) => {
+              if (found) return false
+              if (node.type.name === 'screenshot' && (node.attrs as { id: string }).id === ssId) {
+                ed.view.dispatch(
+                  ed.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: url })
+                )
+                found = true
+                return false
+              }
+            })
+            if (found) break
+          }
+        })
+        .catch(() => { pendingUploadsRef.current.delete(ssId) })
+    })
   }, [view, recordingEditor, completedEditor])
 
   // Keep the ref current so the message handler (which has [] deps) always calls the latest version

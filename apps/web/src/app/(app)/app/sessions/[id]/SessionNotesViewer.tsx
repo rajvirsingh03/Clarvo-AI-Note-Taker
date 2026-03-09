@@ -115,9 +115,19 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
         {activeTab === 'notes' && (
           <>
             {notes ? (
-              <div className="prose prose-invert max-w-none prose-headings:font-display prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-strong:font-bold prose-code:text-purple-300 prose-code:bg-surface-raised prose-code:px-1 prose-code:rounded prose-li:marker:text-accent">
-                <RM>{notes}</RM>
-              </div>
+              notes.trimStart().startsWith('<') ? (
+                // New format: TipTap HTML saved at session completion (includes screenshots)
+                <div
+                  className="prose prose-invert max-w-none prose-headings:font-display prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-strong:font-bold prose-code:text-purple-300 prose-code:bg-surface-raised prose-code:px-1 prose-code:rounded prose-li:marker:text-accent tiptap-notes-viewer"
+                  // Content is the user's own TipTap editor output, only visible to the session owner
+                  dangerouslySetInnerHTML={{ __html: notes }}
+                />
+              ) : (
+                // Legacy format: raw markdown from the AI
+                <div className="prose prose-invert max-w-none prose-headings:font-display prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-strong:font-bold prose-code:text-purple-300 prose-code:bg-surface-raised prose-code:px-1 prose-code:rounded prose-li:marker:text-accent">
+                  <RM>{notes}</RM>
+                </div>
+              )
             ) : (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>📄</div>

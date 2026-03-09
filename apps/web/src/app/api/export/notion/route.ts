@@ -167,6 +167,163 @@ function markdownToBlocks(md: string): BlockObjectRequest[] {
   return blocks
 }
 
+/** Notion external image block */
+function imageBlock(url: string): BlockObjectRequest {
+  return {
+    object: 'block',
+    type: 'image',
+    image: { type: 'external', external: { url } },
+  } as BlockObjectRequest
+}
+
+/**
+ * Strip all HTML tags to produce plain text, suitable for feeding to the AI
+ * action-plan generator or for plain-text Notion fields.
+ */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<figure[^>]*>[\s\S]*?<\/figure>/gi, '[screenshot]')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Extract readable text from an inline HTML snippet for use in Notion rich_text. */
+function htmlInlineToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim()
+}
+
+/**
+ * Convert TipTap HTML (new format) to Notion blocks.
+ * Falls back to `markdownToBlocks` when content is plain markdown (legacy sessions).
+ */
+function htmlToNotionBlocks(html: string): BlockObjectRequest[] {
+  if (!html?.trim().startsWith('<')) {
+    return markdownToBlocks(html ?? '')
+  }
+
+  const blocks: BlockObjectRequest[] = []
+  let remaining = html.trim()
+
+  const consume = (len: number) => {
+    remaining = remaining.slice(len).trimStart()
+  }
+
+  while (remaining.length > 0) {
+    // ── Screenshot figure ──────────────────────────────────────────────────
+    const figMatch = remaining.match(/^<figure[^>]*data-type="screenshot"[^>]*>([\s\S]*?)<\/figure>/i)
+    if (figMatch) {
+      const inner = figMatch[1] ?? ''
+      // Try <img src="..."> inside figure first, then fall back to src attribute on figure
+      const imgSrc = inner.match(/<img[^>]*src="([^"]+)"/i)?.[1]
+        ?? remaining.match(/\bsrc="([^"]+)"/i)?.[1]
+      if (imgSrc?.startsWith('http')) {
+        blocks.push(imageBlock(imgSrc))
+        // Add caption as a paragraph if present
+        const alt = inner.match(/<img[^>]*alt="([^"]+)"/i)?.[1]
+          ?? remaining.match(/\bdata-caption="([^"]+)"/i)?.[1]
+        if (alt?.trim()) blocks.push(paragraph(alt.trim()))
+      }
+      consume(figMatch[0].length)
+      continue
+    }
+
+    // ── Headings ───────────────────────────────────────────────────────────
+    const h1 = remaining.match(/^<h1[^>]*>([\s\S]*?)<\/h1>/i)
+    if (h1) { blocks.push(heading1(htmlInlineToText(h1[1] ?? ''))); consume(h1[0].length); continue }
+
+    const h2 = remaining.match(/^<h2[^>]*>([\s\S]*?)<\/h2>/i)
+    if (h2) { blocks.push(heading2(htmlInlineToText(h2[1] ?? ''))); consume(h2[0].length); continue }
+
+    const h3 = remaining.match(/^<h[3-6][^>]*>([\s\S]*?)<\/h[3-6]>/i)
+    if (h3) {
+      blocks.push({ object: 'block', type: 'heading_3', heading_3: { rich_text: richText(htmlInlineToText(h3[1] ?? '')) } } as BlockObjectRequest)
+      consume(h3[0].length); continue
+    }
+
+    // ── Unordered list ─────────────────────────────────────────────────────
+    const ul = remaining.match(/^<ul[^>]*>([\s\S]*?)<\/ul>/i)
+    if (ul) {
+      for (const li of (ul[1] ?? '').matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)) {
+        blocks.push(bulletItem(htmlInlineToText(li[1] ?? '')))
+      }
+      consume(ul[0].length); continue
+    }
+
+    // ── Ordered list ───────────────────────────────────────────────────────
+    const ol = remaining.match(/^<ol[^>]*>([\s\S]*?)<\/ol>/i)
+    if (ol) {
+      for (const li of (ol[1] ?? '').matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)) {
+        blocks.push({
+          object: 'block', type: 'numbered_list_item',
+          numbered_list_item: { rich_text: richText(htmlInlineToText(li[1] ?? '')) },
+        } as BlockObjectRequest)
+      }
+      consume(ol[0].length); continue
+    }
+
+    // ── Horizontal rule ────────────────────────────────────────────────────
+    const hr = remaining.match(/^<hr[^>]*\/?>/i)
+    if (hr) { blocks.push(divider()); consume(hr[0].length); continue }
+
+    // ── Blockquote ─────────────────────────────────────────────────────────
+    const bq = remaining.match(/^<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i)
+    if (bq) {
+      const text = htmlInlineToText(bq[1] ?? '')
+      if (text) blocks.push({ object: 'block', type: 'quote', quote: { rich_text: richText(text) } } as BlockObjectRequest)
+      consume(bq[0].length); continue
+    }
+
+    // ── Code block ─────────────────────────────────────────────────────────
+    const pre = remaining.match(/^<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/i)
+    if (pre) {
+      const code = htmlInlineToText(pre[1] ?? '')
+      if (code) blocks.push({
+        object: 'block', type: 'code',
+        code: { rich_text: [{ type: 'text', text: { content: code.slice(0, 2000) } }], language: 'plain text' },
+      } as BlockObjectRequest)
+      consume(pre[0].length); continue
+    }
+
+    // ── Paragraph ──────────────────────────────────────────────────────────
+    const p = remaining.match(/^<p[^>]*>([\s\S]*?)<\/p>/i)
+    if (p) {
+      const text = htmlInlineToText(p[1] ?? '')
+      if (text) blocks.push(paragraph(text))
+      consume(p[0].length); continue
+    }
+
+    // Skip unrecognised tags
+    const anyTag = remaining.match(/^<[^>]+>/)
+    if (anyTag) { consume(anyTag[0].length); continue }
+
+    // Bare text (shouldn't happen with TipTap output)
+    const bare = remaining.match(/^[^<]+/)
+    if (bare) {
+      const text = bare[0].trim()
+      if (text) blocks.push(paragraph(text))
+      consume(bare[0].length); continue
+    }
+
+    break // safety — avoid infinite loop
+  }
+
+  return blocks
+}
+
 /** Append blocks in batches to avoid Notion's 100-block limit */
 async function appendBlocksBatched(
   notion: NotionClient,
@@ -346,9 +503,13 @@ export async function POST(request: Request) {
 
     // ── Generate action plan if notes exist ───────────────────────────────────
     let actionPlanText = ''
-    if (session.notes?.trim()) {
+    // Strip HTML tags before feeding to AI (notes may be HTML from TipTap)
+    const notesForAi = session.notes?.trim().startsWith('<')
+      ? htmlToPlainText(session.notes)
+      : session.notes
+    if (notesForAi?.trim()) {
       try {
-        actionPlanText = await generateActionPlan(session.notes)
+        actionPlanText = await generateActionPlan(notesForAi)
       } catch {
         // Non-fatal — export proceeds without action plan
       }
@@ -410,10 +571,10 @@ export async function POST(request: Request) {
       divider(),
     ]
 
-    // Notes section
+    // Notes section — handles both HTML (new sessions) and markdown (legacy)
     const notesBlocks: BlockObjectRequest[] = [
       heading2('📝 AI Structured Notes'),
-      ...markdownToBlocks(session.notes ?? ''),
+      ...htmlToNotionBlocks(session.notes ?? ''),
       divider(),
     ]
 

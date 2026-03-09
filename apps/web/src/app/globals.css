@@ -341,3 +341,29 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ── TipTap HTML notes viewer (dashboard) ────────────────────────────────── */
+
+.tiptap-notes-viewer figure[data-type="screenshot"] {
+  margin: 1.5rem 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-surface-raised);
+}
+
+.tiptap-notes-viewer figure[data-type="screenshot"] img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0;
+}
+
+.tiptap-notes-viewer figure[data-type="screenshot"] + p {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+  margin-top: -1rem;
+  margin-bottom: 1rem;
+}
+
