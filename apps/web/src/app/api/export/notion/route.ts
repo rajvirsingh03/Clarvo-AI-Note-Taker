@@ -193,10 +193,18 @@ function htmlToPlainText(html: string): string {
     .trim()
 }
 
-/** Extract readable text from an inline HTML snippet for use in Notion rich_text. */
+/** Extract readable text from an inline HTML snippet for use in Notion rich_text.
+ * Converts <strong>, <em>, <code> to their Markdown equivalents so richText()
+ * can apply the correct Notion annotations. */
 function htmlInlineToText(html: string): string {
   return html
     .replace(/<br\s*\/?>/gi, '\n')
+    // Convert inline formatting tags → markdown syntax before stripping remaining tags
+    .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, '**$1**')
+    .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, '**$1**')
+    .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, '*$1*')
+    .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, '*$1*')
+    .replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, '`$1`')
     .replace(/<[^>]+>/g, '')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -473,12 +481,12 @@ export async function POST(request: Request) {
       video_title: string | null
       created_at: string
       flashcards: Array<{ front: string; back: string }>
-      screenshots: Array<{ id: string; analysis: string | null }>
+      screenshots: Array<{ id: string }>
     }
 
     const { data: session } = await supabase
       .from('sessions')
-      .select('id, title, notes, state, duration_seconds, watch_time_seconds, video_url, video_title, created_at, flashcards(front, back), screenshots(id, analysis)')
+      .select('id, title, notes, state, duration_seconds, watch_time_seconds, video_url, video_title, created_at, flashcards(front, back), screenshots(id)')
       .eq('id', sessionId)
       .eq('user_id', user.id)
       .single() as { data: SessionWithRelations | null; error: unknown }

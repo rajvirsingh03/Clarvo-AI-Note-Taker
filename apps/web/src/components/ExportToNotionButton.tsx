@@ -7,6 +7,7 @@ interface Props {
   sessionId: string
   sessionTitle: string
   videoUrl?: string | null
+  initialNotionPageId?: string | null
 }
 
 type NotionStatus = 'loading' | 'connected' | 'not_connected'
@@ -165,11 +166,17 @@ function ExportModal({ onClose, onExport, loading, sessionTitle, prefilledCourse
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function ExportToNotionButton({ sessionId, sessionTitle, videoUrl }: Props) {
+export function ExportToNotionButton({ sessionId, sessionTitle, videoUrl, initialNotionPageId }: Props) {
   const [notionStatus, setNotionStatus] = useState<NotionStatus>('loading')
-  const [exportStatus, setExportStatus] = useState<ExportStatus>('idle')
+  const [exportStatus, setExportStatus] = useState<ExportStatus>(
+    initialNotionPageId ? 'success' : 'idle'
+  )
   const [showModal, setShowModal] = useState(false)
-  const [notionUrl, setNotionUrl] = useState<string | null>(null)
+  const [notionUrl, setNotionUrl] = useState<string | null>(
+    initialNotionPageId
+      ? `https://notion.so/${initialNotionPageId.replace(/-/g, '')}`
+      : null
+  )
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   // ── Check Notion connection ─────────────────────────────────────────────────

@@ -41,7 +41,7 @@ export default async function SessionDetailPage({ params }: Props) {
 
   const { data: session } = await supabase
     .from('sessions')
-    .select(`*, flashcards(*), screenshots(*), action_plans(*)`)
+    .select(`*, flashcards(*), action_plans(*)`)
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -49,7 +49,6 @@ export default async function SessionDetailPage({ params }: Props) {
   if (!session) notFound()
 
   const flashcards = (session.flashcards as Array<{ id: string; front: string; back: string }>) ?? []
-  const screenshots = (session.screenshots as Array<{ id: string; url?: string; created_at: string }>) ?? []
   const actionPlans = (session.action_plans as Array<{ content: string }>) ?? []
   const initialActionPlan = actionPlans[0]?.content ?? null
   const watchSeconds = (session as Record<string, unknown>)['watch_time_seconds'] as number ?? session.duration_seconds ?? 0
@@ -92,16 +91,6 @@ export default async function SessionDetailPage({ params }: Props) {
               >
                 {session.state}
               </span>
-              {session.video_url && (
-                <a
-                  href={session.video_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ fontSize: '0.8125rem', color: 'var(--color-accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                >
-                  📹 Source video ↗
-                </a>
-              )}
             </div>
           </div>
 
@@ -111,6 +100,7 @@ export default async function SessionDetailPage({ params }: Props) {
               sessionId={session.id}
               sessionTitle={session.title ?? 'Untitled Session'}
               videoUrl={session.video_url}
+              initialNotionPageId={(session as Record<string, unknown>)['notion_page_id'] as string | null | undefined}
             />
           </div>
         </div>
@@ -166,42 +156,6 @@ export default async function SessionDetailPage({ params }: Props) {
               </>
             )}
           </div>
-
-          {/* Screenshots */}
-          {screenshots.length > 0 && (
-            <div className="card">
-              <h3 className="section-title" style={{ fontSize: '0.9375rem' }}>Screenshots</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
-                {screenshots.slice(0, 4).map((shot) => (
-                  <div
-                    key={shot.id}
-                    style={{
-                      aspectRatio: '16/9',
-                      background: 'var(--color-surface-raised)',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-border)',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {shot.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={shot.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <span style={{ fontSize: '1.25rem' }}>🖼</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {screenshots.length > 4 && (
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', margin: 'var(--space-2) 0 0' }}>
-                  +{screenshots.length - 4} more
-                </p>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -316,7 +316,7 @@ async function transcribeChunk(blob: Blob, index: number, mimeType: string): Pro
   try {
     const buffer = await blob.arrayBuffer()
     const response = await fetch(
-      'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true',
+      'https://api.deepgram.com/v1/listen?model=nova-2&detect_language=true&smart_format=true&punctuate=true',
       {
         method: 'POST',
         headers: {

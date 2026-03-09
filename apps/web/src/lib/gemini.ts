@@ -20,16 +20,6 @@ export function getGeminiPro() {
 }
 
 /**
- * Get the Gemini 2.5 Flash-Lite model for multimodal tasks (screenshots)
- */
-export function getGeminiProVision() {
-  return genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash-lite',
-    safetySettings: SAFETY_SETTINGS,
-  })
-}
-
-/**
  * Extract concepts from a transcript chunk.
  * Returns structured Markdown with KaTeX math blocks.
  */
@@ -76,32 +66,4 @@ export async function generateActionPlan(notes: string): Promise<string> {
   return result.response.text()
 }
 
-/**
- * Analyze a screenshot with surrounding audio context.
- * Returns a descriptive caption to insert inline in the notes.
- */
-export async function analyzeScreenshot(
-  base64Image: string,
-  audioContext: string
-): Promise<string> {
-  const model = getGeminiProVision()
 
-  const prompt = `You are analyzing a screenshot taken during a video learning session.
-The learner captured this screenshot while the presenter was saying:
-"${audioContext}"
-
-Describe what this screenshot shows in 1–3 concise sentences. Focus on the concept being demonstrated, 
-not the visual aesthetics. Output should be ready to embed in structured Markdown learning notes.`
-
-  const result = await model.generateContent([
-    prompt,
-    {
-      inlineData: {
-        mimeType: 'image/png',
-        data: base64Image,
-      },
-    },
-  ])
-
-  return result.response.text()
-}

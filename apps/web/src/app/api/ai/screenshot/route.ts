@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedClient } from '@/lib/supabase/auth'
-import { analyzeScreenshot } from '@/lib/gemini'
-import { screenshotToBase64 } from '@clarvo/utils'
 import { FREE_TIER_LIMITS } from '@clarvo/utils'
 import { z } from 'zod'
 
 const Schema = z.object({
   sessionId: z.string().uuid(),
   imageDataUrl: z.string().startsWith('data:image/'),
-  audioContext: z.string().max(500).optional().default(''),
 })
 
 export async function POST(request: Request) {
@@ -50,18 +47,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
-    const { sessionId, imageDataUrl, audioContext } = parsed.data
-    const base64 = screenshotToBase64(imageDataUrl)
-    const analysis = await analyzeScreenshot(base64, audioContext)
+    const { sessionId, imageDataUrl } = parsed.data
 
-    // Store screenshot in Supabase (base64 data URL + Gemini vision analysis)
+    // Store screenshot in Supabase
     await supabase.from('screenshots').insert({
       session_id: sessionId,
       data_url: imageDataUrl,
-      analysis,
     })
 
-    return NextResponse.json({ success: true, analysis })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('[/api/ai/screenshot]', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

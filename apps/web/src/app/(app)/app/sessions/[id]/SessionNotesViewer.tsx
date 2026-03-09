@@ -1,10 +1,45 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
 // ReactMarkdown's exported type can sometimes be incompatible with JSX typings
 // in this workspace's TS setup. Cast to `any` for JSX usage to avoid TS errors
 const RM: any = ReactMarkdown
+
+const PROSE_CLASSES =
+  'prose prose-invert max-w-none ' +
+  'prose-headings:font-display prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg ' +
+  'prose-strong:font-bold prose-strong:text-white ' +
+  'prose-code:text-purple-300 prose-code:bg-[#1a1a24] prose-code:px-1 prose-code:rounded ' +
+  'prose-li:marker:text-accent prose-a:text-accent ' +
+  '[&_figure[data-type=screenshot]_figcaption]:text-[0.8125rem] ' +
+  '[&_figure[data-type=screenshot]_figcaption]:text-[color:var(--color-text-secondary)] ' +
+  '[&_figure[data-type=screenshot]_figcaption]:not-italic ' +
+  '[&_figure[data-type=screenshot]_figcaption]:mt-1'
+
+/** Inject <figcaption> into screenshot figures that have a non-default alt text. */
+function addScreenshotCaptions(html: string): string {
+  return html.replace(
+    /(<figure[^>]*data-type="screenshot"[^>]*>)([\s\S]*?)(<\/figure>)/gi,
+    (_, open: string, inner: string, close: string) => {
+      if (inner.includes('<figcaption')) return open + inner + close
+      const altMatch = inner.match(/<img[^>]*alt="([^"]+)"/i)
+      const alt = altMatch?.[1]?.trim()
+      if (!alt || alt === 'Screenshot') return open + inner + close
+      return `${open}${inner}<figcaption>${alt}</figcaption>${close}`
+    }
+  )
+}
+
+/** Render any note content — raw markdown, TipTap HTML, or a mix — without showing * or # */
+function NoteContent({ content }: { content: string }) {
+  return (
+    <div className={PROSE_CLASSES}>
+      <RM rehypePlugins={[rehypeRaw]}>{addScreenshotCaptions(content)}</RM>
+    </div>
+  )
+}
 
 interface Flashcard {
   id: string
@@ -30,8 +65,46 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
   const [isGenerating, setIsGenerating] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
 
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [currentNotes, setCurrentNotes] = useState<string | null>(notes)
+  const editorRef = useRef<HTMLDivElement>(null)
+
+  // Populate the contentEditable div with current HTML when entering edit mode
+  useEffect(() => {
+    if (isEditing && editorRef.current && currentNotes) {
+      editorRef.current.innerHTML = currentNotes
+      editorRef.current.focus()
+    }
+  }, [isEditing])
+
   function toggleFlip(id: string) {
     setFlipped((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  async function handleSaveNotes() {
+    const content = editorRef.current?.innerHTML ?? currentNotes ?? ''
+    setIsSaving(true)
+    setSaveError(null)
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: content }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setSaveError(data.error ?? 'Failed to save notes.')
+      } else {
+        setCurrentNotes(content)
+        setIsEditing(false)
+      }
+    } catch {
+      setSaveError('Failed to save notes. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   async function handleGenerateBoth() {
@@ -114,20 +187,59 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
         {/* Notes tab */}
         {activeTab === 'notes' && (
           <>
-            {notes ? (
-              notes.trimStart().startsWith('<') ? (
-                // New format: TipTap HTML saved at session completion (includes screenshots)
-                <div
-                  className="prose prose-invert max-w-none prose-headings:font-display prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-strong:font-bold prose-code:text-purple-300 prose-code:bg-surface-raised prose-code:px-1 prose-code:rounded prose-li:marker:text-accent tiptap-notes-viewer"
-                  // Content is the user's own TipTap editor output, only visible to the session owner
-                  dangerouslySetInnerHTML={{ __html: notes }}
-                />
-              ) : (
-                // Legacy format: raw markdown from the AI
-                <div className="prose prose-invert max-w-none prose-headings:font-display prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-strong:font-bold prose-code:text-purple-300 prose-code:bg-surface-raised prose-code:px-1 prose-code:rounded prose-li:marker:text-accent">
-                  <RM>{notes}</RM>
+            {currentNotes ? (
+              <>
+                {/* Edit / Save toolbar */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', marginBottom: 'var(--space-4)' }}>
+                  {isEditing ? (
+                    <>
+                      {saveError && (
+                        <span style={{ fontSize: '0.8125rem', color: '#f87171' }}>{saveError}</span>
+                      )}
+                      <button
+                        onClick={() => { setIsEditing(false); setSaveError(null) }}
+                        disabled={isSaving}
+                        style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 14px', fontSize: '0.875rem', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveNotes}
+                        disabled={isSaving}
+                        style={{ background: 'var(--color-accent)', border: 'none', borderRadius: 'var(--radius-md)', padding: '6px 14px', fontSize: '0.875rem', fontWeight: 600, color: '#fff', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}
+                      >
+                        {isSaving ? 'Saving…' : 'Save'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 14px', fontSize: '0.875rem', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      ✏️ Edit
+                    </button>
+                  )}
                 </div>
-              )
+                {isEditing ? (
+                  <div
+                    ref={editorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    className={PROSE_CLASSES}
+                    style={{
+                      outline: 'none',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 'var(--space-4)',
+                      minHeight: '400px',
+                      cursor: 'text',
+                      background: 'var(--color-surface-raised)',
+                    }}
+                  />
+                ) : (
+                  <NoteContent content={currentNotes} />
+                )}
+              </>
             ) : (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>📄</div>
@@ -249,9 +361,7 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
                 <p style={{ fontSize: '0.875rem' }}>{generateError}</p>
               </div>
             ) : actionPlan ? (
-              <div className="prose prose-invert max-w-none prose-headings:font-display prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-strong:font-bold prose-code:text-purple-300 prose-code:bg-surface-raised prose-code:px-1 prose-code:rounded prose-li:marker:text-accent">
-                <RM>{actionPlan}</RM>
-              </div>
+              <NoteContent content={actionPlan} />
             ) : (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>📋</div>
