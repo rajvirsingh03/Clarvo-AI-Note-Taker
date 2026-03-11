@@ -24,6 +24,7 @@ import type {
   ErrorPayload,
   ScreenshotReadyPayload,
 } from '@clarvo/types'
+import { cleanTranscript } from '@clarvo/utils'
 
 const WEB_APP_URL = process.env.PLASMO_PUBLIC_WEB_APP_URL ?? 'http://localhost:3000'
 const EXTRACTION_INTERVAL_MS = 3 * 60 * 1000  // 3 minutes
@@ -622,6 +623,13 @@ async function runExtractionCycle(): Promise<void> {
   const token = await getUserAuthToken()
   if (!token) return
 
+  // Clean transcript before sending to LLM (removes fillers, deduplicates, merges short fragments)
+  const cleaned = cleanTranscript(s.accumulatedTranscript)
+  if (!cleaned.trim()) {
+    await setState({ accumulatedTranscript: '' })
+    return
+  }
+
   try {
     // Get last 500 words of existing notes for context window
     const notesRes = await fetch(`${WEB_APP_URL}/api/sessions/${s.sessionId}`, {
@@ -637,7 +645,7 @@ async function runExtractionCycle(): Promise<void> {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId: s.sessionId,
-        chunk: s.accumulatedTranscript,
+        chunk: cleaned,
         existingNotesTail,
       }),
     })
@@ -872,6 +880,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage<unknown>, _sende
       })
       break
     }
+
   }
 })
 
