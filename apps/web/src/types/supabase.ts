@@ -215,6 +215,50 @@ export type Database = {
           }
         ]
       }
+      quiz_questions: {
+        Row: {
+          id: string
+          session_id: string
+          question_number: number
+          difficulty: number
+          question: string
+          options: string[]
+          correct_answer_index: number
+          explanation: string
+          user_answer_index: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          question_number: number
+          difficulty: number
+          question: string
+          options: string[]
+          correct_answer_index: number
+          explanation: string
+          user_answer_index?: number | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          question_number?: number
+          difficulty?: number
+          question?: string
+          options?: string[]
+          correct_answer_index?: number
+          explanation?: string
+          user_answer_index?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'quiz_questions_session_id_fkey'
+            columns: ['session_id']
+            referencedRelation: 'sessions'
+            referencedColumns: ['id']
+          }
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {

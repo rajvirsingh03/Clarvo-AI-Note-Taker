@@ -291,6 +291,8 @@ export default function SidePanel() {
   const [notionExportUrl, setNotionExportUrl] = useState<string | null>(null)
   const [notionExportError, setNotionExportError] = useState<string | null>(null)
   const [newActionText, setNewActionText] = useState('')
+
+
   // Floating toolbar
   const [toolbar, setToolbar] = useState<{ visible: boolean; x: number; y: number }>({ visible: false, x: 0, y: 0 })
   const toolbarRef = useRef<HTMLDivElement>(null)
@@ -763,6 +765,8 @@ export default function SidePanel() {
   const handleCancelDiscard = useCallback(() => {
     setShowDiscardConfirm(false)
   }, [])
+
+
 
   // ── Screenshot capture ─────────────────────────────────────────
   const insertScreenshot = useCallback((dataUrl: string) => {

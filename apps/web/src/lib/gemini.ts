@@ -66,4 +66,81 @@ export async function generateActionPlan(notes: string): Promise<string> {
   return result.response.text()
 }
 
+export interface QuizQuestion {
+  id: number
+  difficulty: number
+  question: string
+  options: string[]
+  correct_answer_index: number
+  explanation: string
+}
+
+/**
+ * Extract image URLs referenced inside notes HTML (Supabase storage URLs).
+ * Only returns absolute https:// URLs; skips base64 data URLs.
+ */
+function extractImageUrls(notesHtml: string): string[] {
+  const matches = notesHtml.matchAll(/src="(https:\/\/[^"]+)"/g)
+  const urls: string[] = []
+  for (const m of matches) {
+    if (m[1]) urls.push(m[1])
+  }
+  return urls
+}
+
+/**
+ * Fetch a remote image URL and return it as a base64 inline data part.
+ */
+async function fetchImagePart(url: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return null
+    const contentType = res.headers.get('content-type') ?? 'image/jpeg'
+    const mimeType = contentType.split(';')[0]?.trim() ?? 'image/jpeg'
+    const buffer = await res.arrayBuffer()
+    const data = Buffer.from(buffer).toString('base64')
+    return { inlineData: { mimeType, data } }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Generate an MCQ quiz from session notes + optional screenshot images.
+ * Returns a JSON array of QuizQuestion objects.
+ */
+export async function generateQuiz(
+  notes: string,
+  notesHtml: string
+): Promise<QuizQuestion[]> {
+  const { buildQuizPrompt, quizQuestionCount } = await import('@clarvo/utils')
+  const numQuestions = quizQuestionCount(notes)
+
+  // Collect image parts from embedded screenshot URLs (up to 5 images to stay within token limits)
+  const imageUrls = extractImageUrls(notesHtml).slice(0, 5)
+  const imageParts = (
+    await Promise.all(imageUrls.map(fetchImagePart))
+  ).filter((p): p is NonNullable<typeof p> => p !== null)
+
+  const hasScreenshots = imageParts.length > 0
+  const promptText = buildQuizPrompt(notes, numQuestions, hasScreenshots)
+
+  const model = getGeminiPro()
+
+  const contents = [
+    { role: 'user' as const, parts: [
+      { text: promptText },
+      ...imageParts,
+    ]},
+  ]
+
+  const result = await model.generateContent({
+    contents,
+    generationConfig: { responseMimeType: 'application/json' },
+  })
+
+  const raw = result.response.text()
+  return JSON.parse(raw) as QuizQuestion[]
+}
+
 

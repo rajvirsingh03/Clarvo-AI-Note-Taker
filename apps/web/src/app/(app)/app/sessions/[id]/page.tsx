@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { SessionNotesViewer } from './SessionNotesViewer'
 import { ExportToNotionButton } from '@/components/ExportToNotionButton'
+import { QuizSection } from './QuizSection'
 
 export const metadata: Metadata = { title: 'Session — Clarvo AI' }
 
@@ -135,6 +136,9 @@ export default async function SessionDetailPage({ params }: Props) {
             </dl>
           </div>
 
+          {/* Quiz */}
+          <QuizSection sessionId={session.id} notes={session.notes} />
+
           {/* Flashcards */}
           <div className="card">
             <h3 className="section-title" style={{ fontSize: '0.9375rem' }}>Flashcards</h3>
@@ -150,9 +154,7 @@ export default async function SessionDetailPage({ params }: Props) {
                 <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', margin: '0 0 var(--space-4)' }}>
                   cards ready to review
                 </p>
-                <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled title="Quiz mode coming soon">
-                  Start Quiz
-                </button>
+
               </>
             )}
           </div>

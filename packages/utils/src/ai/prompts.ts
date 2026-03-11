@@ -70,6 +70,60 @@ Output a JSON array ONLY — no markdown wrapper, no explanation:
 }
 
 /**
+ * Determine the number of quiz questions based on approximate note length.
+ */
+export function quizQuestionCount(notes: string): number {
+  const wordCount = notes.trim().split(/\s+/).length
+  if (wordCount < 300) return 10
+  if (wordCount < 800) return 15
+  if (wordCount < 2000) return 20
+  return 25
+}
+
+/**
+ * Build the quiz MCQ generation prompt.
+ * Returns a validated JSON array of quiz question objects.
+ * Based on the concept-extraction-prompting skill spec — tests application, not memorisation.
+ */
+export function buildQuizPrompt(sessionNotes: string, numQuestions: number, hasScreenshots: boolean): string {
+  const screenshotNote = hasScreenshots
+    ? '\nThe session notes also include visual content (charts, code, diagrams) provided as images. Factor these into your questions where relevant.'
+    : ''
+
+  return `You are an expert educator and assessment designer. Your task is to generate a Multiple Choice Question (MCQ) quiz based on the provided learning session notes.${screenshotNote}
+
+## Session Notes:
+${sessionNotes}
+
+---
+
+CRITICAL INSTRUCTIONS:
+1. TEST APPLICATION, NOT MEMORIZATION: Do not extract direct quotes or exact examples from the notes. Test the underlying principles with novel scenarios.
+2. USE SCENARIOS: Frame questions as real-world scenarios, word problems, or hypothetical situations relevant to the subject matter.
+3. PROGRESSIVE DIFFICULTY: Generate exactly ${numQuestions} questions. Difficulty MUST increase sequentially:
+   - Level 1 (Easy): Basic application of a single core concept in a new context.
+   - Level 2 (Easy-Medium): Single concept application with a twist or edge case.
+   - Level 3 (Medium): Synthesis of two or more concepts from the notes.
+   - Level 4 (Medium-Hard): Scenario requiring multi-step reasoning or identifying the best approach.
+   - Level 5 (Hard): Complex scenario requiring deep analysis, edge-case evaluation, or distinguishing subtle differences between plausible options.
+   For fewer than 5 questions, distribute difficulty even across the range.
+4. PLAUSIBLE DISTRACTORS: All incorrect options must represent common misconceptions or near-correct reasoning. No obvious throwaway answers.
+5. COMPLETE: If the notes are brief, you may ask about related fundamental concepts that would be required to understand the material.
+
+OUTPUT FORMAT — Return ONLY a JSON array, no other text or markdown wrapper:
+[
+  {
+    "id": 1,
+    "difficulty": 1,
+    "question": "...",
+    "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+    "correct_answer_index": 0,
+    "explanation": "Concise explanation of why this answer is correct and what underlying concept it tests."
+  }
+]`
+}
+
+/**
  * Build the action plan generation prompt.
  * Output is structured Markdown with verb-first checklist items and "why" context.
  */
