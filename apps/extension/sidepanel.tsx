@@ -277,7 +277,7 @@ export default function SidePanel() {
   const [isStarting, setIsStarting] = useState(false)
   // Completed-view state
   const [completedPage, setCompletedPage] = useState<CompletedPage>('notes')
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true)
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [actionItems, setActionItems] = useState<ActionItem[]>([])
   const [currentCardIndex, setCurrentCardIndex] = useState(0)
@@ -451,6 +451,7 @@ export default function SidePanel() {
             savedNotesHtml.current = finalHtml
             setIsProcessing(false)
             setView('completed')
+            setIsSidebarExpanded(true)
             setIsStarting(false)
 
             // Persist the rich HTML (screenshots + manual edits + AI notes) to DB
@@ -1103,6 +1104,17 @@ export default function SidePanel() {
         <div className="sp-completed" ref={completedRef}>
           {/* Left sidebar */}
           <div className={`sp-sidebar ${isSidebarExpanded ? 'expanded' : ''}`}>
+            <div className="sp-sidebar-top">
+              <button
+                className="sp-sidebar-toggle"
+                onClick={() => setIsSidebarExpanded((v) => !v)}
+                title={isSidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
+                aria-label={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+              >
+                <span className="sp-sidebar-toggle-icon">{isSidebarExpanded ? '‹' : '›'}</span>
+                {isSidebarExpanded && <span className="sp-sidebar-toggle-label">Collapse</span>}
+              </button>
+            </div>
             <nav className="sp-sidebar-nav">
               <button
                 className={`sp-sidebar-item ${completedPage === 'notes' ? 'active' : ''}`}
@@ -1129,13 +1141,6 @@ export default function SidePanel() {
                 {isSidebarExpanded && <span className="sidebar-label">Action Plan</span>}
               </button>
             </nav>
-            <button
-              className="sp-sidebar-toggle"
-              onClick={() => setIsSidebarExpanded((v) => !v)}
-              title={isSidebarExpanded ? 'Collapse' : 'Expand'}
-            >
-              {isSidebarExpanded ? '‹' : '›'}
-            </button>
           </div>
 
           {/* Main content */}

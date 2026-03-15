@@ -623,12 +623,10 @@ async function runExtractionCycle(): Promise<void> {
   const token = await getUserAuthToken()
   if (!token) return
 
-  // Clean transcript before sending to LLM (removes fillers, deduplicates, merges short fragments)
+  // Run transcript cleaner first; if cleaning collapses to empty, fall back to raw text
+  // so the 3-minute extraction cadence still produces LLM output.
   const cleaned = cleanTranscript(s.accumulatedTranscript)
-  if (!cleaned.trim()) {
-    await setState({ accumulatedTranscript: '' })
-    return
-  }
+  const chunkForExtraction = cleaned.trim() ? cleaned : s.accumulatedTranscript.trim()
 
   try {
     // Get last 500 words of existing notes for context window
@@ -645,7 +643,7 @@ async function runExtractionCycle(): Promise<void> {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId: s.sessionId,
-        chunk: cleaned,
+        chunk: chunkForExtraction,
         existingNotesTail,
       }),
     })
