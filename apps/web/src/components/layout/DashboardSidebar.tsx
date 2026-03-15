@@ -2,13 +2,21 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import {
+  ArrowLeft,
+  ChartPie,
+  Clock,
+  Crown,
+  Gauge,
+  Gear,
+} from '@phosphor-icons/react'
 
 const NAV_ITEMS = [
-  { href: '/app', label: 'Dashboard', icon: '⊞' },
-  { href: '/app/sessions', label: 'Sessions', icon: '⏱' },
-  { href: '/app/analytics', label: 'Analytics', icon: '⬡' },
-  { href: '/app/billing', label: 'Billing', icon: '⭐' },
-  { href: '/app/settings', label: 'Settings', icon: '⚙' },
+  { href: '/app', label: 'Dashboard', icon: Gauge },
+  { href: '/app/sessions', label: 'Sessions', icon: Clock },
+  { href: '/app/analytics', label: 'Analytics', icon: ChartPie },
+  { href: '/app/billing', label: 'Billing', icon: Crown },
+  { href: '/app/settings', label: 'Settings', icon: Gear },
 ]
 
 export function DashboardSidebar() {
@@ -47,7 +55,7 @@ export function DashboardSidebar() {
       {/* Nav */}
       <nav style={{ flex: 1, padding: '0.75rem 0.75rem' }}>
         <ul style={{ listStyle: 'none' }}>
-          {NAV_ITEMS.map(({ href, label, icon }) => {
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== '/app' && pathname.startsWith(href))
             return (
               <li key={href} style={{ marginBottom: '2px' }}>
@@ -69,7 +77,7 @@ export function DashboardSidebar() {
                     minHeight: '44px',
                   }}
                 >
-                  <span aria-hidden style={{ fontSize: '1rem', lineHeight: 1 }}>{icon}</span>
+                  <span aria-hidden style={{ lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><Icon size={16} weight="fill" /></span>
                   {label}
                 </Link>
               </li>
@@ -82,9 +90,9 @@ export function DashboardSidebar() {
       <div style={{ padding: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
         <Link
           href="/"
-          style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: '0.8125rem', padding: '0.5rem', textDecoration: 'none' }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--color-text-secondary)', fontSize: '0.8125rem', padding: '0.5rem', textDecoration: 'none' }}
         >
-          ← Back to website
+          <ArrowLeft size={12} weight="bold" aria-hidden="true" /> Back to website
         </Link>
       </div>
     </aside>

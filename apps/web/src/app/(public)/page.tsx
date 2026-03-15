@@ -1,33 +1,42 @@
 import Link from 'next/link'
+import {
+  ArrowRight,
+  Brain,
+  Camera,
+  Cards,
+  ClipboardText,
+  Lightning,
+  UploadSimple,
+} from '@phosphor-icons/react'
 
 const FEATURES = [
   {
-    icon: '⚡',
+    icon: Lightning,
     title: 'Live Transcription',
     desc: 'Word-for-word capture as you watch. Nova-2 model. Zero lag.',
   },
   {
-    icon: '🧠',
+    icon: Brain,
     title: 'AI Concept Extraction',
     desc: 'Gemini distills raw transcript into structured notes — no fluff.',
   },
   {
-    icon: '🃏',
+    icon: Cards,
     title: 'Auto Flashcards',
     desc: 'Spaced-repetition cards generated from your session. Study smarter.',
   },
   {
-    icon: '📋',
+    icon: ClipboardText,
     title: 'Action Plans',
     desc: 'Walk away knowing exactly what to do next. Clarvo maps it out.',
   },
   {
-    icon: '📤',
+    icon: UploadSimple,
     title: 'Notion Export',
     desc: 'Push your structured notes to any Notion page in one click.',
   },
   {
-    icon: '📸',
+    icon: Camera,
     title: 'Screenshot Analysis',
     desc: 'Capture frames. Gemini Vision explains diagrams, slides, and charts.',
   },
@@ -126,7 +135,7 @@ export default function HomePage() {
                 transition: 'transform 0.15s, box-shadow 0.15s',
               }}
             >
-              Get started free →
+              Get started free <ArrowRight size={14} weight="bold" aria-hidden="true" />
             </Link>
             <a
               href="#how-it-works"
@@ -187,7 +196,9 @@ export default function HomePage() {
           overflow: 'hidden',
           border: '1px solid var(--color-border)',
         }}>
-          {FEATURES.map((f) => (
+          {FEATURES.map((f) => {
+            const Icon = f.icon
+            return (
             <div
               key={f.title}
               style={{
@@ -199,7 +210,7 @@ export default function HomePage() {
                 transition: 'background 0.2s',
               }}
             >
-              <span style={{ fontSize: '1.75rem', lineHeight: 1 }}>{f.icon}</span>
+              <span style={{ lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><Icon size={28} weight="fill" /></span>
               <h3 style={{
                 fontFamily: 'var(--font-display)',
                 fontWeight: 600,
@@ -209,7 +220,7 @@ export default function HomePage() {
               }}>{f.title}</h3>
               <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>{f.desc}</p>
             </div>
-          ))}
+          )})}
         </div>
       </section>
 
@@ -358,7 +369,7 @@ export default function HomePage() {
               boxShadow: '0 0 40px rgba(108,99,255,0.35)',
             }}
           >
-            Get started free →
+            Get started free <ArrowRight size={14} weight="bold" aria-hidden="true" />
           </Link>
           <p style={{ marginTop: '1.25rem', color: 'var(--color-text-tertiary)', fontSize: '0.8125rem' }}>
             No credit card • Chrome only for now • Takes 30 seconds

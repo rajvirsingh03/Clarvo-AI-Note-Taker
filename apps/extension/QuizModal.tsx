@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import gsap from 'gsap'
+import { ArrowRight } from '@phosphor-icons/react'
 
 export interface QuizQuestion {
   id: string
@@ -228,7 +229,7 @@ export function QuizModal({ questions, startIndex = 0, reviewMode = false, onClo
             </button>
           ) : (
             <button className="quiz-next-btn" onClick={handleNext}>
-              {isLast ? 'Finish Quiz' : 'Next →'}
+              {isLast ? 'Finish Quiz' : <>Next <ArrowRight size={14} weight="bold" aria-hidden="true" /></>}
             </button>
           )}
         </div>

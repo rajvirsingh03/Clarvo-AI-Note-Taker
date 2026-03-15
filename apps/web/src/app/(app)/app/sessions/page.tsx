@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { ArrowLeft, ArrowRight, FilmSlate, VideoCamera } from '@phosphor-icons/react'
 
 export const metadata: Metadata = { title: 'Sessions — Clarvo AI' }
 
@@ -96,7 +97,7 @@ export default async function SessionsPage({ searchParams }: Props) {
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {!sessions || sessions.length === 0 ? (
           <div style={{ padding: 'var(--space-16)', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: 'var(--space-4)' }}>🎬</div>
+            <div style={{ marginBottom: 'var(--space-4)', display: 'inline-flex' }}><FilmSlate size={48} weight="fill" aria-hidden="true" /></div>
             <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)', margin: '0 0 8px' }}>
               {q || stateParam ? 'No matching sessions' : 'No sessions yet'}
             </h3>
@@ -137,7 +138,7 @@ export default async function SessionsPage({ searchParams }: Props) {
                       </div>
                       {session.video_title && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '2px', maxWidth: '380px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          📹 {session.video_title}
+                          <VideoCamera size={12} weight="fill" aria-hidden="true" /> {session.video_title}
                         </div>
                       )}
                     </td>
@@ -166,7 +167,7 @@ export default async function SessionsPage({ searchParams }: Props) {
                         className="btn btn-ghost"
                         style={{ height: '28px', padding: '0 10px', fontSize: '0.8125rem' }}
                       >
-                        View →
+                        View <ArrowRight size={12} weight="bold" aria-hidden="true" />
                       </Link>
                     </td>
                   </tr>
@@ -187,7 +188,7 @@ export default async function SessionsPage({ searchParams }: Props) {
                       className="btn btn-ghost"
                       style={{ height: '32px', padding: '0 12px', fontSize: '0.8125rem' }}
                     >
-                      ← Prev
+                      <ArrowLeft size={12} weight="bold" aria-hidden="true" /> Prev
                     </Link>
                   )}
                   {page < totalPages && (
@@ -196,7 +197,7 @@ export default async function SessionsPage({ searchParams }: Props) {
                       className="btn btn-ghost"
                       style={{ height: '32px', padding: '0 12px', fontSize: '0.8125rem' }}
                     >
-                      Next →
+                      Next <ArrowRight size={12} weight="bold" aria-hidden="true" />
                     </Link>
                   )}
                 </div>

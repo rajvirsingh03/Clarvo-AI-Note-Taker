@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { FREE_TIER_LIMITS } from '@clarvo/utils'
+import { ArrowRight, Check, X } from '@phosphor-icons/react'
 
 export const metadata: Metadata = { title: 'Billing — Clarvo AI' }
 
@@ -136,7 +137,7 @@ export default async function BillingPage() {
               'Basic session management',
             ].map((f) => (
               <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>
-                <span style={{ color: '#10b981', flexShrink: 0 }}>✓</span>
+                <span style={{ color: '#10b981', flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><Check size={14} weight="bold" aria-hidden="true" /></span>
                 {f}
               </li>
             ))}
@@ -147,7 +148,7 @@ export default async function BillingPage() {
               'Unlimited recording',
             ].map((f) => (
               <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                <span style={{ color: 'var(--color-border)', flexShrink: 0 }}>✗</span>
+                <span style={{ color: 'var(--color-border)', flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><X size={14} weight="bold" aria-hidden="true" /></span>
                 {f}
               </li>
             ))}
@@ -198,7 +199,7 @@ export default async function BillingPage() {
               'Priority support',
             ].map((f) => (
               <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>
-                <span style={{ color: '#10b981', flexShrink: 0 }}>✓</span>
+                <span style={{ color: '#10b981', flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><Check size={14} weight="bold" aria-hidden="true" /></span>
                 {f}
               </li>
             ))}
@@ -210,7 +211,7 @@ export default async function BillingPage() {
               disabled
               title="Stripe checkout coming soon"
             >
-              Upgrade to Pro →
+              Upgrade to Pro <ArrowRight size={14} weight="bold" aria-hidden="true" />
             </button>
           )}
         </div>

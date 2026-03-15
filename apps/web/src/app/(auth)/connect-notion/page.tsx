@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { ConnectNotionButton } from './ConnectNotionButton'
+import { Cards, ChartBar, CheckCircle, NotePencil, Sparkle } from '@phosphor-icons/react'
 
 export const metadata: Metadata = { title: 'Connect Notion — Clarvo AI' }
 
@@ -54,8 +55,7 @@ export default async function ConnectNotionPage({ searchParams }: Props) {
               background: 'var(--color-accent)',
               borderRadius: 8,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1rem',
-            }}>✦</span>
+            }}><Sparkle size={14} weight="fill" color="#fff" /></span>
             Clarvo AI
           </div>
         </div>
@@ -127,11 +127,11 @@ export default async function ConnectNotionPage({ searchParams }: Props) {
             gap: '0.625rem',
           }}>
             {[
-              ['📊', 'Auto-create the "Clarvo AI Workspace" database'],
-              ['📝', 'Export structured notes with inline screenshots'],
-              ['✅', 'Action plan as checklist items'],
-              ['🃏', 'Flashcards as an organized table'],
-            ].map(([icon, label]) => (
+              [ChartBar, 'Auto-create the "Clarvo AI Workspace" database'],
+              [NotePencil, 'Export structured notes with inline screenshots'],
+              [CheckCircle, 'Action plan as checklist items'],
+              [Cards, 'Flashcards as an organized table'],
+            ].map(([Icon, label]) => (
               <li key={label} style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -139,7 +139,7 @@ export default async function ConnectNotionPage({ searchParams }: Props) {
                 fontSize: '0.875rem',
                 color: 'var(--color-text-secondary)',
               }}>
-                <span style={{ fontSize: '1rem', flexShrink: 0 }}>{icon}</span>
+                <span style={{ fontSize: '1rem', flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><Icon size={16} weight="fill" /></span>
                 {label}
               </li>
             ))}

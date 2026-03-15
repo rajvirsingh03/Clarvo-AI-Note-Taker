@@ -2,6 +2,19 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import {
+  ArrowRight,
+  Calendar,
+  Cards,
+  CheckCircle,
+  Crown,
+  FilmSlate,
+  NotePencil,
+  Plug,
+  VideoCamera,
+  Clock,
+  ClipboardText,
+} from '@phosphor-icons/react'
 
 export const metadata: Metadata = { title: 'Dashboard — Clarvo AI' }
 
@@ -79,7 +92,7 @@ export default async function AppDashboardPage() {
             {totalSessions}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-            <span style={{ fontSize: '1rem' }}>🎬</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}><FilmSlate size={16} weight="fill" aria-hidden="true" /></span>
             <span className="stat-label">Total Sessions</span>
           </div>
         </div>
@@ -89,7 +102,7 @@ export default async function AppDashboardPage() {
             {formatDuration(totalWatchSeconds)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-            <span style={{ fontSize: '1rem' }}>⏱</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}><Clock size={16} weight="fill" aria-hidden="true" /></span>
             <span className="stat-label">Watch Time</span>
           </div>
         </div>
@@ -99,7 +112,7 @@ export default async function AppDashboardPage() {
             {totalFlashcards}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-            <span style={{ fontSize: '1rem' }}>🃏</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}><Cards size={16} weight="fill" aria-hidden="true" /></span>
             <span className="stat-label">Flashcards</span>
           </div>
         </div>
@@ -128,7 +141,7 @@ export default async function AppDashboardPage() {
             <>
               <div style={{ fontSize: '1.75rem', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--color-accent)', lineHeight: 1 }}>∞</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                <span style={{ fontSize: '1rem' }}>⭐</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}><Crown size={16} weight="fill" aria-hidden="true" /></span>
                 <span className="stat-label">Pro Plan</span>
               </div>
             </>
@@ -143,13 +156,13 @@ export default async function AppDashboardPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-5) var(--space-6)', borderBottom: '1px solid var(--color-border)' }}>
             <h2 className="section-title" style={{ margin: 0 }}>Recent Sessions</h2>
             <Link href="/app/sessions" className="btn btn-ghost" style={{ height: '32px', padding: '0 12px', fontSize: '0.8125rem' }}>
-              View all →
+              View all <ArrowRight size={12} weight="bold" aria-hidden="true" />
             </Link>
           </div>
 
           {recentSessions.length === 0 ? (
             <div style={{ padding: 'var(--space-12) var(--space-6)', textAlign: 'center' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-4)' }}>🎬</div>
+              <div style={{ marginBottom: 'var(--space-4)', display: 'inline-flex' }}><FilmSlate size={40} weight="fill" aria-hidden="true" /></div>
               <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9375rem', margin: '0 0 var(--space-4)' }}>
                 No sessions yet. Install the extension to start recording.
               </p>
@@ -182,7 +195,7 @@ export default async function AppDashboardPage() {
                       </div>
                       {session.video_title && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '2px', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          📹 {session.video_title}
+                          <VideoCamera size={12} weight="fill" aria-hidden="true" /> {session.video_title}
                         </div>
                       )}
                     </td>
@@ -232,7 +245,7 @@ export default async function AppDashboardPage() {
                 border: '1px solid rgba(108,99,255,0.3)',
               }}
             >
-              <div style={{ fontSize: '1.25rem', marginBottom: 'var(--space-2)' }}>⭐</div>
+              <div style={{ marginBottom: 'var(--space-2)', display: 'inline-flex' }}><Crown size={20} weight="fill" aria-hidden="true" /></div>
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '0.9375rem', fontWeight: 700, margin: '0 0 4px', color: 'var(--color-text-primary)' }}>
                 Upgrade to Pro
               </h3>
@@ -256,7 +269,7 @@ export default async function AppDashboardPage() {
                 className="btn btn-secondary"
                 style={{ width: '100%', justifyContent: 'flex-start' }}
               >
-                <span>🔌</span> Install Extension
+                <span><Plug size={14} weight="fill" aria-hidden="true" /></span> Install Extension
               </a>
               {profile?.notion_access_token ? (
                 <div style={{ padding: 'var(--space-3)', background: 'var(--color-surface-raised)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
@@ -269,7 +282,7 @@ export default async function AppDashboardPage() {
                   className="btn btn-secondary"
                   style={{ width: '100%', justifyContent: 'flex-start' }}
                 >
-                  <span>📝</span> Connect Notion
+                  <span><NotePencil size={14} weight="fill" aria-hidden="true" /></span> Connect Notion
                 </a>
               )}
               <Link
@@ -277,7 +290,7 @@ export default async function AppDashboardPage() {
                 className="btn btn-secondary"
                 style={{ width: '100%', justifyContent: 'flex-start' }}
               >
-                <span>📋</span> All Sessions
+                <span><ClipboardText size={14} weight="fill" aria-hidden="true" /></span> All Sessions
               </Link>
             </div>
           </div>
@@ -287,13 +300,13 @@ export default async function AppDashboardPage() {
             <h3 className="section-title">Get Started</h3>
             <ol style={{ paddingLeft: 'var(--space-4)', margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               <li style={{ fontSize: '0.8125rem', color: totalSessions > 0 ? '#22c55e' : 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-                {totalSessions > 0 ? '✅' : '1.'} Record your first session
+                {totalSessions > 0 ? <CheckCircle size={14} weight="fill" aria-hidden="true" /> : '1.'} Record your first session
               </li>
               <li style={{ fontSize: '0.8125rem', color: totalFlashcards > 0 ? '#22c55e' : 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-                {totalFlashcards > 0 ? '✅' : '2.'} Review flashcards
+                {totalFlashcards > 0 ? <CheckCircle size={14} weight="fill" aria-hidden="true" /> : '2.'} Review flashcards
               </li>
               <li style={{ fontSize: '0.8125rem', color: profile?.notion_access_token ? '#22c55e' : 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-                {profile?.notion_access_token ? '✅' : '3.'} Connect Notion
+                {profile?.notion_access_token ? <CheckCircle size={14} weight="fill" aria-hidden="true" /> : '3.'} Connect Notion
               </li>
             </ol>
           </div>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { ArrowSquareOut, NotePencil } from '@phosphor-icons/react'
 
 export const metadata: Metadata = { title: 'Settings — Clarvo AI' }
 
@@ -131,7 +132,7 @@ export default async function SettingsPage() {
           </div>
         ) : (
           <Link href="/api/auth/notion" className="btn btn-secondary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <span>📝</span> Connect Notion
+            <span><NotePencil size={14} weight="fill" aria-hidden="true" /></span> Connect Notion
           </Link>
         )}
       </div>
@@ -150,7 +151,7 @@ export default async function SettingsPage() {
             className="btn btn-secondary"
             style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '0.875rem' }}
           >
-            ↗ Chrome Web Store
+            <ArrowSquareOut size={14} weight="bold" aria-hidden="true" /> Chrome Web Store
           </a>
         </div>
       </div>

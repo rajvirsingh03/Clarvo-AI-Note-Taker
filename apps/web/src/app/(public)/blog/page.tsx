@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { ArrowRight } from '@phosphor-icons/react'
 
 export const metadata: Metadata = { title: 'Blog' }
 
@@ -123,7 +124,7 @@ export default function BlogPage() {
             fontWeight: 700,
             textDecoration: 'none',
           }}>
-            Create a free account →
+            Create a free account <ArrowRight size={14} weight="bold" aria-hidden="true" />
           </Link>
         </div>
       </section>

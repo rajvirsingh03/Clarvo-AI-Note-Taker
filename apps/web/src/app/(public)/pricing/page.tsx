@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { ArrowRight, Check } from '@phosphor-icons/react'
 
 export const metadata: Metadata = { title: 'Pricing' }
 
@@ -105,7 +106,7 @@ export default function PricingPage() {
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {FREE_FEATURES.map(f => (
               <li key={f} style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                <span style={{ color: 'var(--color-success)', flexShrink: 0 }}>✓</span> {f}
+                <span style={{ color: 'var(--color-success)', flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><Check size={14} weight="bold" aria-hidden="true" /></span> {f}
               </li>
             ))}
             {FREE_MISSING.map(f => (
@@ -162,13 +163,13 @@ export default function PricingPage() {
             textDecoration: 'none',
             boxShadow: '0 0 24px rgba(108,99,255,0.3)',
           }}>
-            Start free → upgrade later
+            Start free <ArrowRight size={14} weight="bold" aria-hidden="true" /> upgrade later
           </Link>
 
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {PRO_FEATURES.map(f => (
               <li key={f} style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                <span style={{ color: 'var(--color-accent)', flexShrink: 0 }}>✓</span> {f}
+                <span style={{ color: 'var(--color-accent)', flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><Check size={14} weight="bold" aria-hidden="true" /></span> {f}
               </li>
             ))}
           </ul>

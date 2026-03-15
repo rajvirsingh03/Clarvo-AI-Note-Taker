@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
+import { ArrowSquareOut, CheckCircle } from '@phosphor-icons/react'
 
 interface Props {
   sessionId: string
@@ -313,7 +314,7 @@ export function ExportToNotionButton({ sessionId, sessionTitle, videoUrl, initia
   if (exportStatus === 'success') {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <span style={{ fontSize: '0.875rem', color: '#4ade80', fontWeight: 600 }}>✓ Exported!</span>
+        <span style={{ fontSize: '0.875rem', color: '#4ade80', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}><CheckCircle size={14} weight="fill" /> Exported!</span>
         {notionUrl && (
           <a
             href={notionUrl}
@@ -322,9 +323,12 @@ export function ExportToNotionButton({ sessionId, sessionTitle, videoUrl, initia
             style={{
               fontSize: '0.875rem', color: 'var(--color-accent)',
               textDecoration: 'none', fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.3rem',
             }}
           >
-            Open in Notion ↗
+            Open in Notion <ArrowSquareOut size={13} weight="bold" />
           </a>
         )}
         <button

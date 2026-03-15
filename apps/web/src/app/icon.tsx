@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { Lightning } from '@phosphor-icons/react'
 
 export const size = { width: 32, height: 32 }
 export const contentType = 'image/png'
@@ -20,13 +21,12 @@ export default function Icon() {
       >
         <div
           style={{
-            fontSize: 18,
-            color: '#6c63ff',
-            fontWeight: 800,
-            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          ⚡
+          <Lightning size={18} weight="fill" color="#6c63ff" />
         </div>
       </div>
     ),

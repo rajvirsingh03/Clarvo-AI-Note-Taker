@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { Lightning } from '@phosphor-icons/react'
 
 interface ErrorProps {
   error: Error & { digest?: string }
@@ -33,7 +34,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
         }}
         aria-hidden
       >
-        ⚡
+        <Lightning size={48} weight="fill" />
       </p>
 
       <h1

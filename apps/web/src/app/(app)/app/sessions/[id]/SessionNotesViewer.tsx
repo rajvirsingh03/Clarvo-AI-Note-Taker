@@ -3,6 +3,15 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
+import {
+  Cards,
+  ClipboardText,
+  Hourglass,
+  Note,
+  PencilSimple,
+  Sparkle,
+  WarningCircle,
+} from '@phosphor-icons/react'
 // ReactMarkdown's exported type can sometimes be incompatible with JSX typings
 // in this workspace's TS setup. Cast to `any` for JSX usage to avoid TS errors
 const RM: any = ReactMarkdown
@@ -216,7 +225,7 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
                       onClick={() => setIsEditing(true)}
                       style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '6px 14px', fontSize: '0.875rem', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                     >
-                      ✏️ Edit
+                      <PencilSimple size={14} weight="fill" aria-hidden="true" /> Edit
                     </button>
                   )}
                 </div>
@@ -242,7 +251,7 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>📄</div>
+                <div style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}><Note size={40} weight="fill" aria-hidden="true" /></div>
                 <p style={{ fontWeight: 600, marginBottom: 'var(--space-2)', color: 'var(--color-text-primary)' }}>
                   No notes yet
                 </p>
@@ -259,13 +268,13 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
           <>
             {isGenerating ? (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>⏳</div>
+                <div style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}><Hourglass size={40} weight="fill" aria-hidden="true" /></div>
                 <p style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Generating flashcards…</p>
                 <p style={{ fontSize: '0.875rem', marginTop: 'var(--space-2)' }}>This may take a few seconds.</p>
               </div>
             ) : generateError ? (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>⚠️</div>
+                <div style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}><WarningCircle size={40} weight="fill" aria-hidden="true" /></div>
                 <p style={{ fontWeight: 600, marginBottom: 'var(--space-2)', color: 'var(--color-text-primary)' }}>
                   Could not generate
                 </p>
@@ -273,7 +282,7 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
               </div>
             ) : flashcards.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>🃏</div>
+                <div style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}><Cards size={40} weight="fill" aria-hidden="true" /></div>
                 <p style={{ fontWeight: 600, marginBottom: 'var(--space-2)', color: 'var(--color-text-primary)' }}>
                   No flashcards yet
                 </p>
@@ -282,7 +291,7 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
                 </p>
                 {notes && (
                   <button style={generateButtonStyle} onClick={handleGenerateBoth} disabled={isGenerating}>
-                    ✦ Generate Flashcards
+                    <Sparkle size={14} weight="fill" aria-hidden="true" /> Generate Flashcards
                   </button>
                 )}
               </div>
@@ -348,13 +357,13 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
           <>
             {isGenerating ? (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>⏳</div>
+                <div style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}><Hourglass size={40} weight="fill" aria-hidden="true" /></div>
                 <p style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Generating action plan…</p>
                 <p style={{ fontSize: '0.875rem', marginTop: 'var(--space-2)' }}>This may take a few seconds.</p>
               </div>
             ) : generateError ? (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>⚠️</div>
+                <div style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}><WarningCircle size={40} weight="fill" aria-hidden="true" /></div>
                 <p style={{ fontWeight: 600, marginBottom: 'var(--space-2)', color: 'var(--color-text-primary)' }}>
                   Could not generate action plan
                 </p>
@@ -364,7 +373,7 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
               <NoteContent content={actionPlan} />
             ) : (
               <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-secondary)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-3)' }}>📋</div>
+                <div style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}><ClipboardText size={40} weight="fill" aria-hidden="true" /></div>
                 <p style={{ fontWeight: 600, marginBottom: 'var(--space-2)', color: 'var(--color-text-primary)' }}>
                   No action plan yet
                 </p>
@@ -373,7 +382,7 @@ export function SessionNotesViewer({ notes, flashcards: initialFlashcards, sessi
                 </p>
                 {notes && (
                   <button style={generateButtonStyle} onClick={handleGenerateBoth} disabled={isGenerating}>
-                    ✦ Generate Action Plan
+                    <Sparkle size={14} weight="fill" aria-hidden="true" /> Generate Action Plan
                   </button>
                 )}
               </div>

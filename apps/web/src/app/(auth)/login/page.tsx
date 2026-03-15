@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { GoogleSignInButton } from './GoogleSignInButton'
+import { Lightning } from '@phosphor-icons/react'
 
 export const metadata: Metadata = { title: 'Sign In' }
 
@@ -51,9 +52,8 @@ export default function LoginPage({
             border: '1px solid rgba(108,99,255,0.4)',
             borderRadius: '12px',
             marginBottom: '1.25rem',
-            fontSize: '1.375rem',
           }}>
-            ⚡
+            <Lightning size={22} weight="fill" color="var(--color-accent)" />
           </div>
           <h1 style={{
             fontFamily: 'var(--font-display)',

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { ArrowRight, Sparkle, Star, X } from '@phosphor-icons/react'
 
 interface QuizQuestion {
   id: string
@@ -164,7 +165,7 @@ function QuizModal({ questions, reviewMode, onClose, onAnswerSave }: QuizModalPr
               fontSize: '14px',
             }}
           >
-            ✕
+            <X size={14} weight="bold" aria-hidden="true" />
           </button>
         </div>
 
@@ -274,7 +275,7 @@ function QuizModal({ questions, reviewMode, onClose, onAnswerSave }: QuizModalPr
                 color: 'var(--color-accent)', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
               }}
             >
-              {isLast ? 'Finish Quiz' : 'Next →'}
+              {isLast ? 'Finish Quiz' : <>Next <ArrowRight size={14} weight="bold" aria-hidden="true" /></>}
             </button>
           )}
         </div>
@@ -397,7 +398,7 @@ export function QuizSection({ sessionId, notes }: QuizSectionProps) {
                 ? 'Preparing…'
                 : questions.length > 0
                 ? 'Open Quiz'
-                : '✦ Take Quiz'}
+                : <><Sparkle size={14} weight="fill" aria-hidden="true" /> Take Quiz</>}
             </button>
             {error && (
               <p style={{ fontSize: '0.8125rem', color: '#f87171', marginTop: 'var(--space-3)', marginBottom: 0 }}>
@@ -441,7 +442,7 @@ export function QuizSection({ sessionId, notes }: QuizSectionProps) {
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
               }}
             >
-              <div style={{ fontSize: '2.5rem' }}>⭐</div>
+              <div style={{ display: 'inline-flex' }}><Star size={40} weight="fill" aria-hidden="true" /></div>
               <h3 style={{ fontWeight: 700, fontSize: '17px', margin: 0, color: 'var(--color-text-primary)' }}>
                 Quiz Complete
               </h3>

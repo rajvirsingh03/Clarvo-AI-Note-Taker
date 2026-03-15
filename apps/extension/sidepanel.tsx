@@ -22,6 +22,28 @@ import Underline from '@tiptap/extension-underline'
 import Highlight from '@tiptap/extension-highlight'
 import Link from '@tiptap/extension-link'
 import { Node, mergeAttributes } from '@tiptap/react'
+import {
+  ArrowRight,
+  ArrowSquareOut,
+  Camera,
+  Cards,
+  CaretLeft,
+  CaretRight,
+  Check,
+  CheckCircle,
+  FilmSlate,
+  Headphones,
+  ListChecks,
+  NotePencil,
+  Pause,
+  Play,
+  Sparkle,
+  SpinnerGap,
+  Stop,
+  Trash,
+  WarningCircle,
+  X,
+} from '@phosphor-icons/react'
 
 import type {
   ExtensionMessage,
@@ -153,11 +175,11 @@ const ScreenshotNodeView: React.FC<NodeViewProps> = ({ node, deleteNode, updateA
           onMouseDown={(e) => e.preventDefault()}
           title="Remove screenshot"
         >
-          ✕
+          <X size={11} weight="bold" aria-hidden="true" />
         </button>
         <img src={node.attrs.src as string} alt="Screenshot" draggable={false} />
         <div className="screenshot-footer">
-          <span className="screenshot-timestamp">📷 {node.attrs.timestamp as string}</span>
+          <span className="screenshot-timestamp"><Camera size={12} weight="fill" aria-hidden="true" /> {node.attrs.timestamp as string}</span>
           {!showCaption ? (
             <button
               className="screenshot-add-caption-btn"
@@ -930,7 +952,7 @@ export default function SidePanel() {
       {/* ── Header ── */}
       <header className="sp-header">
         <div className="sp-logo">
-          <div className="sp-logo-icon">✦</div>
+          <div className="sp-logo-icon"><Sparkle size={12} weight="fill" aria-hidden="true" /></div>
           Clarvo
         </div>
         {view === 'recording' && (
@@ -938,7 +960,7 @@ export default function SidePanel() {
             <div className={`sp-rec-badge ${isPaused ? 'paused' : ''}`}>
               {isPaused ? (
                 <>
-                  <span className="sp-pause-icon">❚❚</span>
+                  <span className="sp-pause-icon"><Pause size={10} weight="fill" aria-hidden="true" /></span>
                   PAUSED
                 </>
               ) : (
@@ -950,15 +972,15 @@ export default function SidePanel() {
             </div>
             <span className="sp-timer">{formatTime(elapsed)}</span>
             <button className="sp-ctrl-btn sp-pause-btn" onClick={handleTogglePause}>
-              {isPaused ? '▶' : '❚❚'}
+              {isPaused ? <Play size={12} weight="fill" aria-hidden="true" /> : <Pause size={12} weight="fill" aria-hidden="true" />}
             </button>
             <button className="sp-stop-btn" onClick={handleEndSession}>
-              ⏹ End
+              <Stop size={12} weight="fill" aria-hidden="true" /> End
             </button>
           </>
         )}
         {view === 'completed' && (
-          <span className="sp-done-badge">✓ Done</span>
+          <span className="sp-done-badge"><CheckCircle size={12} weight="fill" aria-hidden="true" /> Done</span>
         )}
       </header>
 
@@ -966,7 +988,7 @@ export default function SidePanel() {
       {alerts.map((alert) => (
         <div key={alert.id} className={`sp-alert ${alert.type}`}>
           <div className="sp-alert-header">
-            <span className="sp-alert-icon">{alert.type === 'error' ? '✕' : '⚠'}</span>
+            <span className="sp-alert-icon">{alert.type === 'error' ? <X size={10} weight="bold" aria-hidden="true" /> : <WarningCircle size={10} weight="fill" aria-hidden="true" />}</span>
             <span className="sp-alert-title">{alert.title}</span>
           </div>
           <p>{alert.message}</p>
@@ -979,7 +1001,7 @@ export default function SidePanel() {
       {/* ═══ IDLE STATE ═══ */}
       {view === 'idle' && (
         <div className="sp-idle" ref={idleRef}>
-          <div className="idle-glyph">🎧</div>
+          <div className="idle-glyph"><Headphones size={24} weight="fill" aria-hidden="true" /></div>
           <h2 className="idle-title">No video detected</h2>
           <p className="idle-body">
             Navigate to a page with a video (YouTube, Coursera, etc.) to get started.
@@ -990,14 +1012,14 @@ export default function SidePanel() {
       {/* ═══ DETECTED STATE ═══ */}
       {view === 'detected' && (
         <div className="sp-detected" ref={detectedRef}>
-          <div className="detected-icon">🎬</div>
+          <div className="detected-icon"><FilmSlate size={24} weight="fill" aria-hidden="true" /></div>
           <h2 className="detected-title">Video Detected</h2>
           <p className="detected-video-title">{videoTitle || 'Untitled Video'}</p>
           <p className="detected-body">
             Click below to start capturing audio and generating AI notes.
           </p>
           <button className="sp-start-btn" onClick={handleStart} disabled={isStarting}>
-            {isStarting ? '⏳ Starting…' : '▶ Start Session'}
+            {isStarting ? <><SpinnerGap size={14} className="sp-spinner" /> Starting...</> : <><Play size={14} weight="fill" aria-hidden="true" /> Start Session</>}
           </button>
         </div>
       )}
@@ -1021,7 +1043,7 @@ export default function SidePanel() {
               ))}
             </div>
             <span className="wave-label">
-              {isPaused ? 'Paused…' : isExtracting ? '✦ Thinking…' : 'Listening…'}
+              {isPaused ? 'Paused...' : isExtracting ? 'Thinking...' : 'Listening...'}
             </span>
           </div>
 
@@ -1089,11 +1111,11 @@ export default function SidePanel() {
           {/* Bottom bar with screenshot button + discard */}
           <div className="sp-bottom-bar">
             <button className="sp-screenshot-btn" onClick={handleScreenshotBtn} title="Capture screenshot (Ctrl+K)" disabled={isProcessing}>
-              <span className="screenshot-icon">📷</span>
+              <span className="screenshot-icon"><Camera size={13} weight="fill" aria-hidden="true" /></span>
               Screenshot
             </button>
             <button className="sp-discard-btn" onClick={handleDiscardSession} disabled={isProcessing}>
-              🗑 Discard
+              <Trash size={13} weight="fill" aria-hidden="true" /> Discard
             </button>
           </div>
         </div>
@@ -1111,7 +1133,7 @@ export default function SidePanel() {
                 title={isSidebarExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
                 aria-label={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
               >
-                <span className="sp-sidebar-toggle-icon">{isSidebarExpanded ? '‹' : '›'}</span>
+                <span className="sp-sidebar-toggle-icon">{isSidebarExpanded ? <CaretLeft size={16} weight="bold" aria-hidden="true" /> : <CaretRight size={16} weight="bold" aria-hidden="true" />}</span>
                 {isSidebarExpanded && <span className="sp-sidebar-toggle-label">Collapse</span>}
               </button>
             </div>
@@ -1121,7 +1143,7 @@ export default function SidePanel() {
                 onClick={() => setCompletedPage('notes')}
                 title="Notes"
               >
-                <span className="sidebar-icon">📝</span>
+                <span className="sidebar-icon"><NotePencil size={16} weight="fill" aria-hidden="true" /></span>
                 {isSidebarExpanded && <span className="sidebar-label">Notes</span>}
               </button>
               <button
@@ -1129,7 +1151,7 @@ export default function SidePanel() {
                 onClick={() => setCompletedPage('flashcards')}
                 title="Flashcards"
               >
-                <span className="sidebar-icon">🃏</span>
+                <span className="sidebar-icon"><Cards size={16} weight="fill" aria-hidden="true" /></span>
                 {isSidebarExpanded && <span className="sidebar-label">Flashcards</span>}
               </button>
               <button
@@ -1137,7 +1159,7 @@ export default function SidePanel() {
                 onClick={() => setCompletedPage('action-plan')}
                 title="Action Plan"
               >
-                <span className="sidebar-icon">✅</span>
+                <span className="sidebar-icon"><ListChecks size={16} weight="fill" aria-hidden="true" /></span>
                 {isSidebarExpanded && <span className="sidebar-label">Action Plan</span>}
               </button>
             </nav>
@@ -1149,7 +1171,7 @@ export default function SidePanel() {
             {completedPage === 'notes' && (
               <>
                 <div className="sp-notes-header">
-                  <span className="sp-complete-badge">✓ Session Complete</span>
+                  <span className="sp-complete-badge"><CheckCircle size={11} weight="fill" aria-hidden="true" /> Session Complete</span>
                   <span className="sp-session-title" title={videoTitle}>{videoTitle || 'Session Notes'}</span>
                 </div>
 
@@ -1186,7 +1208,7 @@ export default function SidePanel() {
                       target="_blank"
                       rel="noreferrer"
                     >
-                      View Dashboard →
+                      View Dashboard <ArrowRight size={13} weight="bold" aria-hidden="true" />
                     </a>
                     <button
                       className={`sp-action-btn sp-action-secondary ${isGenerating ? 'loading' : ''}`}
@@ -1196,7 +1218,7 @@ export default function SidePanel() {
                       {isGenerating ? (
                         <><span className="sp-spinner" />Generating…</>
                       ) : (
-                        '✦ Flashcards'
+                        <><Sparkle size={13} weight="fill" aria-hidden="true" /> Flashcards</>
                       )}
                     </button>
                     <button
@@ -1208,7 +1230,7 @@ export default function SidePanel() {
                       {isExportingNotion ? (
                         <><span className="sp-spinner" />Exporting…</>
                       ) : notionExportUrl ? (
-                        '✓ Notion ↗'
+                        <><CheckCircle size={13} weight="fill" aria-hidden="true" /> Notion <ArrowSquareOut size={13} weight="bold" aria-hidden="true" /></>
                       ) : (
                         'Export to Notion'
                       )}
@@ -1235,7 +1257,7 @@ export default function SidePanel() {
 
                 {flashcards.length === 0 ? (
                   <div className="sp-empty-state">
-                    <div className="sp-empty-icon">🃏</div>
+                    <div className="sp-empty-icon"><Cards size={32} weight="fill" aria-hidden="true" /></div>
                     <h3 className="sp-empty-title">No flashcards yet</h3>
                     <p className="sp-empty-body">Generate flashcards from your session notes to review and retain key concepts.</p>
                     {generateError && <p className="sp-generate-error">{generateError}</p>}
@@ -1244,7 +1266,7 @@ export default function SidePanel() {
                       onClick={handleGenerate}
                       disabled={isGenerating || isGenerated}
                     >
-                      {isGenerating ? <><span className="sp-spinner" /> Generating…</> : '✦ Generate Flashcards & Action Plan'}
+                      {isGenerating ? <><span className="sp-spinner" /> Generating...</> : <><Sparkle size={13} weight="fill" aria-hidden="true" /> Generate Flashcards & Action Plan</>}
                     </button>
                   </div>
                 ) : (
@@ -1272,7 +1294,7 @@ export default function SidePanel() {
                         className="sp-card-arrow"
                         onClick={() => { setCurrentCardIndex((i) => Math.max(0, i - 1)); setIsCardFlipped(false) }}
                         disabled={currentCardIndex === 0}
-                      >‹</button>
+                      ><CaretLeft size={14} weight="bold" aria-hidden="true" /></button>
                       <div className="sp-card-dots">
                         {flashcards.slice(0, Math.min(flashcards.length, 8)).map((_, i) => (
                           <span
@@ -1287,7 +1309,7 @@ export default function SidePanel() {
                         className="sp-card-arrow"
                         onClick={() => { setCurrentCardIndex((i) => Math.min(flashcards.length - 1, i + 1)); setIsCardFlipped(false) }}
                         disabled={currentCardIndex === flashcards.length - 1}
-                      >›</button>
+                      ><CaretRight size={14} weight="bold" aria-hidden="true" /></button>
                     </div>
                   </div>
                 )}
@@ -1306,7 +1328,7 @@ export default function SidePanel() {
 
                 {actionItems.length === 0 ? (
                   <div className="sp-empty-state">
-                    <div className="sp-empty-icon">✅</div>
+                    <div className="sp-empty-icon"><ListChecks size={32} weight="fill" aria-hidden="true" /></div>
                     <h3 className="sp-empty-title">No action plan yet</h3>
                     <p className="sp-empty-body">Generate a structured action plan from your session to turn learning into results.</p>
                     {generateError && <p className="sp-generate-error">{generateError}</p>}
@@ -1315,7 +1337,7 @@ export default function SidePanel() {
                       onClick={handleGenerate}
                       disabled={isGenerating || isGenerated}
                     >
-                      {isGenerating ? <><span className="sp-spinner" /> Generating…</> : '✦ Generate Flashcards & Action Plan'}
+                      {isGenerating ? <><span className="sp-spinner" /> Generating...</> : <><Sparkle size={13} weight="fill" aria-hidden="true" /> Generate Flashcards & Action Plan</>}
                     </button>
                   </div>
                 ) : (
@@ -1328,7 +1350,7 @@ export default function SidePanel() {
                             onClick={() => toggleActionItem(item.id)}
                             aria-label={item.completed ? 'Mark incomplete' : 'Mark complete'}
                           >
-                            {item.completed ? '✓' : ''}
+                            {item.completed ? <Check size={12} weight="bold" aria-hidden="true" /> : ''}
                           </button>
                           <span className="sp-checklist-text">{item.text}</span>
                         </li>
@@ -1379,7 +1401,7 @@ export default function SidePanel() {
       {showDiscardConfirm && (
         <div className="sp-confirm-backdrop" onClick={handleCancelDiscard}>
           <div className="sp-confirm-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="sp-confirm-icon">🗑</div>
+            <div className="sp-confirm-icon"><Trash size={28} weight="fill" aria-hidden="true" /></div>
             <h3 className="sp-confirm-title">Discard this session?</h3>
             <p className="sp-confirm-body">
               Your notes and transcript will be permanently deleted. Watch time will still be counted.

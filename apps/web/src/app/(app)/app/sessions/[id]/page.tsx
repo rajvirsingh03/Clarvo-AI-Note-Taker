@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { SessionNotesViewer } from './SessionNotesViewer'
 import { ExportToNotionButton } from '@/components/ExportToNotionButton'
 import { QuizSection } from './QuizSection'
+import { ArrowLeft, Clock } from '@phosphor-icons/react'
 
 export const metadata: Metadata = { title: 'Session — Clarvo AI' }
 
@@ -62,7 +63,7 @@ export default async function SessionDetailPage({ params }: Props) {
           href="/app/sessions"
           style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
         >
-          ← Sessions
+          <ArrowLeft size={13} weight="bold" aria-hidden="true" /> Sessions
         </Link>
       </div>
 
@@ -79,7 +80,7 @@ export default async function SessionDetailPage({ params }: Props) {
               </span>
               <span style={{ color: 'var(--color-border)' }}>·</span>
               <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                ⏱ {formatDuration(watchSeconds)}
+                <Clock size={12} weight="fill" aria-hidden="true" /> {formatDuration(watchSeconds)}
               </span>
               <span
                 className={`badge ${
