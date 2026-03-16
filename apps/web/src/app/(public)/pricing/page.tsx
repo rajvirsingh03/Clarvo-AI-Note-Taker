@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowRight, Check } from '@phosphor-icons/react'
+import { ArrowRight, Check } from '@/components/phosphor-icons'
 
 export const metadata: Metadata = { title: 'Pricing' }
 

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { ArrowLeft, ArrowRight, FilmSlate, VideoCamera } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowRight, FilmSlate, VideoCamera } from '@/components/phosphor-icons'
 
 export const metadata: Metadata = { title: 'Sessions — Clarvo AI' }
 

@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { SessionNotesViewer } from './SessionNotesViewer'
 import { ExportToNotionButton } from '@/components/ExportToNotionButton'
 import { QuizSection } from './QuizSection'
-import { ArrowLeft, Clock } from '@phosphor-icons/react'
+import { ArrowLeft, Clock } from '@/components/phosphor-icons'
 
 export const metadata: Metadata = { title: 'Session — Clarvo AI' }
 

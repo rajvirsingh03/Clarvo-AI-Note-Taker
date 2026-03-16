@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { ArrowSquareOut, CheckCircle } from '@phosphor-icons/react'
+import { ArrowSquareOut, CheckCircle } from '@/components/phosphor-icons'
 
 interface Props {
   sessionId: string

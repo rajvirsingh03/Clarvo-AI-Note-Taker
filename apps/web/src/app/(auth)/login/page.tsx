@@ -1,16 +1,17 @@
 import type { Metadata } from 'next'
 import { GoogleSignInButton } from './GoogleSignInButton'
-import { Lightning } from '@phosphor-icons/react'
+import { Lightning } from '@/components/phosphor-icons'
 
 export const metadata: Metadata = { title: 'Sign In' }
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string; signup?: string }
+  searchParams: Promise<{ error?: string; signup?: string }>
 }) {
-  const isSignup = searchParams?.signup === '1'
-  const error = searchParams?.error
+  const resolvedSearchParams = await searchParams
+  const isSignup = resolvedSearchParams?.signup === '1'
+  const error = resolvedSearchParams?.error
 
   return (
     <div style={{

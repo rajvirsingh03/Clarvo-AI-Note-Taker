@@ -1,7 +1,6 @@
 ---
 name: auth-flow-validation
-description: |
-Authentication flow validation between frontend and backend. Covers JWT, OAuth2, token refresh, and session management sync.
+description: Authentication flow validation between frontend and backend. Covers JWT, OAuth2, token refresh, and session management sync.
 USE WHEN: user asks about "auth integration", "JWT validation", "token refresh", "401 handling", "authentication flow", "login integration"
 DO NOT USE FOR: security auditing - use security skills, OAuth provider setup - use authentication skills
 allowed-tools: Read, Grep, Glob, Bash

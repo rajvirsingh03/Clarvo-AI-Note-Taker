@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "plasmo dev",
+    "dev:firefox": "plasmo dev --target=firefox-mv2",
     "build": "plasmo build",
     "build:firefox": "plasmo build --target=firefox-mv2",
     "build:chrome": "plasmo build --target=chrome-mv3",

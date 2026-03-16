@@ -11,7 +11,7 @@ import {
   PencilSimple,
   Sparkle,
   WarningCircle,
-} from '@phosphor-icons/react'
+} from '@/components/phosphor-icons'
 // ReactMarkdown's exported type can sometimes be incompatible with JSX typings
 // in this workspace's TS setup. Cast to `any` for JSX usage to avoid TS errors
 const RM: any = ReactMarkdown

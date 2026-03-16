@@ -14,7 +14,7 @@ import {
   VideoCamera,
   Clock,
   ClipboardText,
-} from '@phosphor-icons/react'
+} from '@/components/phosphor-icons'
 
 export const metadata: Metadata = { title: 'Dashboard — Clarvo AI' }
 

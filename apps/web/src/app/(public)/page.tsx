@@ -7,7 +7,7 @@ import {
   ClipboardText,
   Lightning,
   UploadSimple,
-} from '@phosphor-icons/react'
+} from '@/components/phosphor-icons'
 
 const FEATURES = [
   {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Lightning } from '@phosphor-icons/react'
+import { Lightning } from '@/components/phosphor-icons'
 
 interface ErrorProps {
   error: Error & { digest?: string }

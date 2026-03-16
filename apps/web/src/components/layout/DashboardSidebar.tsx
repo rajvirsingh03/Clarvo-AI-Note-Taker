@@ -9,7 +9,7 @@ import {
   Crown,
   Gauge,
   Gear,
-} from '@phosphor-icons/react'
+} from '@/components/phosphor-icons'
 
 const NAV_ITEMS = [
   { href: '/app', label: 'Dashboard', icon: Gauge },

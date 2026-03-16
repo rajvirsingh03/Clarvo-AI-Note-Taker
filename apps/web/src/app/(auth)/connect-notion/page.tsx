@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { ConnectNotionButton } from './ConnectNotionButton'
-import { Cards, ChartBar, CheckCircle, NotePencil, Sparkle } from '@phosphor-icons/react'
+import { Cards, ChartBar, CheckCircle, NotePencil, Sparkle } from '@/components/phosphor-icons'
 
 export const metadata: Metadata = { title: 'Connect Notion — Clarvo AI' }
 

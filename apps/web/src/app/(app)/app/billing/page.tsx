@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { FREE_TIER_LIMITS } from '@clarvo/utils'
-import { ArrowRight, Check, X } from '@phosphor-icons/react'
+import { ArrowRight, Check, X } from '@/components/phosphor-icons'
 
 export const metadata: Metadata = { title: 'Billing — Clarvo AI' }
 

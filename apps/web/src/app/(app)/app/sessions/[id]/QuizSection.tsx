@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowRight, Sparkle, Star, X } from '@phosphor-icons/react'
+import { ArrowRight, Sparkle, Star, X } from '@/components/phosphor-icons'
 
 interface QuizQuestion {
   id: string
