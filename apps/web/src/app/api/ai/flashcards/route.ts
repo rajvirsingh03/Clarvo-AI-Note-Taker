@@ -15,20 +15,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check billing tier
-    const { data: profile } = await supabase
-      .from('users')
-      .select('billing_tier')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.billing_tier === 'FREE') {
-      return NextResponse.json(
-        { error: 'Flashcard generation requires Clarvo Pro.', upgradeRequired: true },
-        { status: 402 }
-      )
-    }
-
     const body = await request.json()
     const parsed = Schema.safeParse(body)
     if (!parsed.success) {
@@ -37,13 +23,33 @@ export async function POST(request: Request) {
 
     const { sessionId } = parsed.data
 
-    const { data: session } = await supabase
-      .from('sessions')
-      .select('id, user_id, notes, state')
-      .eq('id', sessionId)
-      .eq('user_id', user.id)
-      .single()
+    // ── Fetch billing profile + session ownership in parallel ─────────────────
+    // Previously these were two sequential DB calls; running them concurrently
+    // halves the DB latency on the happy path.
+    const [profileResult, sessionResult] = await Promise.all([
+      supabase
+        .from('users')
+        .select('billing_tier')
+        .eq('id', user.id)
+        .single(),
+      supabase
+        .from('sessions')
+        .select('id, user_id, notes, state')
+        .eq('id', sessionId)
+        .eq('user_id', user.id)
+        .single(),
+    ])
 
+    // Billing check
+    if (profileResult.data?.billing_tier === 'FREE') {
+      return NextResponse.json(
+        { error: 'Flashcard generation requires Clarvo Pro.', upgradeRequired: true },
+        { status: 402 }
+      )
+    }
+
+    // Session check
+    const session = sessionResult.data
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
@@ -54,14 +60,16 @@ export async function POST(request: Request) {
 
     const flashcards = await generateFlashcards(session.notes)
 
-    // Persist flashcards
-    await supabase.from('flashcards').insert(
+    // Persist flashcards (fire-and-forget)
+    void supabase.from('flashcards').insert(
       flashcards.map((fc) => ({
         session_id: sessionId,
         front: fc.front,
         back: fc.back,
       }))
-    )
+    ).then(({ error }) => {
+      if (error) console.error('[/api/ai/flashcards] Failed to persist:', error)
+    })
 
     return NextResponse.json({ success: true, flashcards })
   } catch (error) {

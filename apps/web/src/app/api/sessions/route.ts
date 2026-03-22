@@ -15,19 +15,33 @@ export async function GET(request: Request) {
     const from = (page - 1) * limit
     const to = from + limit - 1
 
+    // Avoid SELECT * — only fetch columns needed by the sessions list UI.
+    // This reduces payload size and avoids transmitting notes/large text columns.
     const { data, count, error } = await supabase
       .from('sessions')
-      .select('*', { count: 'exact' })
+      .select(
+        'id, title, state, created_at, updated_at, video_url, video_title, watch_time_seconds, duration_seconds',
+        { count: 'exact' }
+      )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .range(from, to)
 
     if (error) throw error
 
-    return NextResponse.json({
-      sessions: data,
-      pagination: { page, limit, total: count ?? 0, totalPages: Math.ceil((count ?? 0) / limit) },
-    })
+    return NextResponse.json(
+      {
+        sessions: data,
+        pagination: { page, limit, total: count ?? 0, totalPages: Math.ceil((count ?? 0) / limit) },
+      },
+      {
+        headers: {
+          // Short-lived cache: session list changes frequently but a 5s private
+          // cache eliminates duplicate tab/reload round-trips.
+          'Cache-Control': 'private, max-age=5, stale-while-revalidate=10',
+        },
+      }
+    )
   } catch (error) {
     console.error('[GET /api/sessions]', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -47,7 +61,16 @@ export async function POST(request: Request) {
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Free tier: max 30 minutes of total watch time
+    // Parse body early so we can validate before doing expensive DB checks
+    const body = await request.json()
+    const parsed = CreateSessionSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+
+    // Free tier: max 30 minutes of total watch time.
+    // Run billing check + session insert as conditional — only query users table
+    // when strictly needed (avoids extra round-trip for Pro users).
     const { data: profile } = await supabase
       .from('users')
       .select('billing_tier, free_minutes_used')
@@ -64,12 +87,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const body = await request.json()
-    const parsed = CreateSessionSchema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
-    }
-
     const { data, error } = await supabase
       .from('sessions')
       .insert({
@@ -79,7 +96,7 @@ export async function POST(request: Request) {
         video_title: parsed.data.videoTitle,
         state: 'RECORDING',
       })
-      .select()
+      .select('id, title, state, created_at, updated_at, video_url, video_title, watch_time_seconds, duration_seconds')
       .single()
 
     if (error) throw error

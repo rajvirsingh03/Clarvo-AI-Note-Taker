@@ -19,13 +19,40 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('billing_tier')
-      .eq('id', user.id)
-      .single() as { data: UserProfile | null, error: unknown }
+    const body = await request.json()
+    const parsed = Schema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
 
-    if (profileError || !profile) {
+    const { sessionId } = parsed.data
+
+    // ── Run all read queries concurrently ─────────────────────────────────────
+    // 1. Billing tier check
+    // 2. Existing action plan (cache hit — return immediately if found)
+    // 3. Session ownership + notes
+    // All three ran serially before; now resolved in a single round-trip batch.
+    const [profileResult, existingResult, sessionResult] = await Promise.all([
+      supabase
+        .from('users')
+        .select('billing_tier')
+        .eq('id', user.id)
+        .single() as unknown as Promise<{ data: UserProfile | null; error: unknown }>,
+      supabase
+        .from('action_plans')
+        .select('content')
+        .eq('session_id', sessionId)
+        .maybeSingle(),
+      supabase
+        .from('sessions')
+        .select('id, user_id, notes')
+        .eq('id', sessionId)
+        .eq('user_id', user.id)
+        .single() as unknown as Promise<{ data: SessionData | null; error: unknown }>,
+    ])
+
+    const profile = profileResult.data
+    if (!profile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
@@ -36,40 +63,25 @@ export async function POST(request: Request) {
       )
     }
 
-    const body = await request.json()
-    const parsed = Schema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    // Return cached action plan if it already exists
+    if (existingResult.data) {
+      return NextResponse.json({ success: true, actionPlan: existingResult.data.content })
     }
 
-    const { sessionId } = parsed.data
-
-    // Return existing action plan from DB if available
-    const { data: existing } = await supabase
-      .from('action_plans')
-      .select('content')
-      .eq('session_id', sessionId)
-      .maybeSingle()
-
-    if (existing) {
-      return NextResponse.json({ success: true, actionPlan: existing.content })
-    }
-
-    const { data: session, error: sessionError } = await supabase
-      .from('sessions')
-      .select('id, user_id, notes')
-      .eq('id', sessionId)
-      .eq('user_id', user.id)
-      .single() as { data: SessionData | null, error: unknown }
-
-    if (sessionError || !session || !session.notes) {
+    const session = sessionResult.data
+    if (!session || !session.notes) {
       return NextResponse.json({ error: 'Session not found or has no notes' }, { status: 404 })
     }
 
     const actionPlan = await generateActionPlan(session.notes)
 
-    // Persist action plan
-    await supabase.from('action_plans').insert({ session_id: sessionId, content: actionPlan })
+    // Persist action plan (fire-and-forget — don't block the response)
+    void supabase
+      .from('action_plans')
+      .insert({ session_id: sessionId, content: actionPlan })
+      .then(({ error }) => {
+        if (error) console.error('[/api/ai/action-plan] Failed to persist action plan:', error)
+      })
 
     return NextResponse.json({ success: true, actionPlan })
   } catch (error) {

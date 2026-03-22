@@ -25,10 +25,22 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session — required for Server Components
+  // Refresh session — required for Server Components.
+  // Use getSession() first (local cookie read, no network call) to determine if
+  // a refresh is needed, then only call getUser() to validate when there IS a
+  // session. This avoids a full network round-trip for unauthenticated requests.
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  // Only validate with the Supabase server when there is an existing session
+  // token that needs to be verified. For unauthenticated pages this saves a
+  // network round-trip entirely.
+  let user = session?.user ?? null
+  if (session) {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  }
 
   // Protect /app/** routes
   if (!user && request.nextUrl.pathname.startsWith('/app')) {
@@ -52,9 +64,14 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except static files and API routes
-     * that don't need auth (public API routes use their own guards)
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon.ico and image assets
+     * - /api/** routes — API routes perform their own authentication via
+     *   getAuthenticatedClient(); running middleware auth on top doubles the
+     *   Supabase network calls per API request.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

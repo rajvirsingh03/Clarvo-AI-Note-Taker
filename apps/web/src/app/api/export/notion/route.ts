@@ -448,28 +448,20 @@ async function getOrCreateWorkspaceDatabase(
 
 export async function POST(request: Request) {
   try {
-    const { user, supabase } = await getAuthenticatedClient(request)
+    // ── Parse auth + body concurrently ────────────────────────────────────────
+    const [{ user, supabase }, body] = await Promise.all([
+      getAuthenticatedClient(request),
+      request.json(),
+    ])
+
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { data: profile } = await supabase
-      .from('users')
-      .select('billing_tier, notion_access_token, notion_workspace_id, notion_database_id')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.notion_access_token) {
-      return NextResponse.json(
-        { error: 'Notion not connected.', notionRequired: true },
-        { status: 422 }
-      )
-    }
-
-    const body = await request.json()
     const parsed = Schema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
     const { sessionId, course, module: mod, lesson } = parsed.data
 
+    // ── Fetch profile + session in parallel ───────────────────────────────────
     type SessionWithRelations = {
       id: string
       title: string
@@ -484,43 +476,62 @@ export async function POST(request: Request) {
       screenshots: Array<{ id: string }>
     }
 
-    const { data: session } = await supabase
-      .from('sessions')
-      .select('id, title, notes, state, duration_seconds, watch_time_seconds, video_url, video_title, created_at, flashcards(front, back), screenshots(id)')
-      .eq('id', sessionId)
-      .eq('user_id', user.id)
-      .single() as { data: SessionWithRelations | null; error: unknown }
+    const [profileResult, sessionResult] = await Promise.all([
+      supabase
+        .from('users')
+        .select('billing_tier, notion_access_token, notion_workspace_id, notion_database_id')
+        .eq('id', user.id)
+        .single(),
+      supabase
+        .from('sessions')
+        .select('id, title, notes, state, duration_seconds, watch_time_seconds, video_url, video_title, created_at, flashcards(front, back), screenshots(id)')
+        .eq('id', sessionId)
+        .eq('user_id', user.id)
+        .single() as unknown as Promise<{ data: SessionWithRelations | null; error: unknown }>,
+    ])
 
+    const profile = profileResult.data
+    if (!profile?.notion_access_token) {
+      return NextResponse.json(
+        { error: 'Notion not connected.', notionRequired: true },
+        { status: 422 }
+      )
+    }
+
+    const session = sessionResult.data
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
     const notion = new NotionClient({ auth: profile.notion_access_token })
 
-    // ── Get/create database ────────────────────────────────────────────────────
-    const databaseId = await getOrCreateWorkspaceDatabase(
-      notion,
-      (profile as Record<string, unknown>).notion_database_id as string | null
-    )
-
-    // Persist database ID for future exports (skip billing check — always available)
-    if ((profile as Record<string, unknown>).notion_database_id !== databaseId) {
-      await supabase
-        .from('users')
-        .update({ notion_database_id: databaseId, updated_at: new Date().toISOString() })
-        .eq('id', user.id)
-    }
-
-    // ── Generate action plan if notes exist ───────────────────────────────────
-    let actionPlanText = ''
-    // Strip HTML tags before feeding to AI (notes may be HTML from TipTap)
+    // ── Get/create database and Generate action plan concurrently ──────────────
     const notesForAi = session.notes?.trim().startsWith('<')
       ? htmlToPlainText(session.notes)
       : session.notes
-    if (notesForAi?.trim()) {
-      try {
-        actionPlanText = await generateActionPlan(notesForAi)
-      } catch {
-        // Non-fatal — export proceeds without action plan
-      }
+
+    const [databaseId, actionPlanText] = await Promise.all([
+      getOrCreateWorkspaceDatabase(
+        notion,
+        (profile as Record<string, unknown>).notion_database_id as string | null
+      ),
+      (async () => {
+        if (!notesForAi?.trim()) return ''
+        try {
+          return await generateActionPlan(notesForAi)
+        } catch {
+          return '' // Non-fatal
+        }
+      })()
+    ])
+
+    // Persist database ID for future exports (fire-and-forget)
+    if ((profile as Record<string, unknown>).notion_database_id !== databaseId) {
+      void supabase
+        .from('users')
+        .update({ notion_database_id: databaseId, updated_at: new Date().toISOString() })
+        .eq('id', user.id)
+        .then(({ error }) => {
+          if (error) console.error('[/api/export/notion] Failed to update notion_database_id:', error)
+        })
     }
 
     // ── Create database row (the page) ────────────────────────────────────────

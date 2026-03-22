@@ -18,10 +18,14 @@ const Schema = z.object({
  */
 export async function POST(request: Request) {
   try {
-    const { user, supabase } = await getAuthenticatedClient(request)
+    // Parse auth + body in parallel — no dependency between them
+    const [{ user, supabase }, body] = await Promise.all([
+      getAuthenticatedClient(request),
+      request.json(),
+    ])
+
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await request.json()
     const parsed = Schema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid request', details: parsed.error.issues }, { status: 400 })

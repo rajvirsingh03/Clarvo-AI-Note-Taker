@@ -1,16 +1,13 @@
 {
+	"inputs": [
+		{
+			"id": "POSTMAN_API_KEY",
+			"type": "promptString",
+			"description": "A valid Postman API key.",
+			"password": true
+		}
+	],
 	"servers": {
-		"io.github.ChromeDevTools/chrome-devtools-mcp": {
-			"type": "stdio",
-			"command": "npx",
-			"args": [
-				"--registry",
-				"https://registry.npmjs.org",
-				"chrome-devtools-mcp@0.18.1"
-			],
-			"gallery": "https://api.mcp.github.com",
-			"version": "0.18.1"
-		},
 		"stitch": {
 			"url": "https://stitch.googleapis.com/mcp",
 			"type": "http",
@@ -44,13 +41,5 @@
 			"type": "http",
 			"url": "https://mcp.notion.com/mcp"
 		}
-	},
-	"inputs": [
-		{
-			"id": "POSTMAN_API_KEY",
-			"type": "promptString",
-			"description": "A valid Postman API key.",
-			"password": true
-		}
-	]
+	}
 }

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedClient } from '@/lib/supabase/auth'
-import { FREE_TIER_LIMITS } from '@clarvo/utils'
 import { z } from 'zod'
 
 const Schema = z.object({
@@ -16,38 +15,49 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: profile } = await supabase
-      .from('users')
-      .select('billing_tier')
-      .eq('id', user.id)
-      .single()
+    // Parse body once upfront — eliminates the duplicate parse that existed
+    // in the free-tier branch where the body was parsed twice.
+    const body = await request.json()
+    const parsed = Schema.safeParse(body)
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+
+    const { sessionId, imageDataUrl } = parsed.data
+
+    // ── Fetch billing + session ownership in parallel ─────────────────────────
+    const [profileResult, sessionResult] = await Promise.all([
+      supabase
+        .from('users')
+        .select('billing_tier')
+        .eq('id', user.id)
+        .single(),
+      supabase
+        .from('sessions')
+        .select('id')
+        .eq('id', sessionId)
+        .eq('user_id', user.id)
+        .single(),
+    ])
+
+    if (!sessionResult.data) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    }
 
     // Free tier: 3 screenshots per session
-    if (profile?.billing_tier === 'FREE') {
-      const body = await request.json()
-      const parsed = Schema.safeParse(body)
-      if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
-
-      const screenshotCount = await supabase
+    if (profileResult.data?.billing_tier === 'FREE') {
+      const { count } = await supabase
         .from('screenshots')
         .select('id', { count: 'exact', head: true })
-        .eq('session_id', parsed.data.sessionId)
+        .eq('session_id', sessionId)
 
-      if ((screenshotCount.count ?? 0) >= FREE_TIER_LIMITS.SCREENSHOTS_PER_SESSION) {
+      // Lazy import FREE_TIER_LIMITS to avoid circular dep issues during cold start
+      const { FREE_TIER_LIMITS } = await import('@clarvo/utils')
+      if ((count ?? 0) >= FREE_TIER_LIMITS.SCREENSHOTS_PER_SESSION) {
         return NextResponse.json(
           { error: `Free tier allows ${FREE_TIER_LIMITS.SCREENSHOTS_PER_SESSION} screenshots per session. Upgrade to Pro for unlimited.`, upgradeRequired: true },
           { status: 402 }
         )
       }
     }
-
-    const body = await request.json()
-    const parsed = Schema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
-    }
-
-    const { sessionId, imageDataUrl } = parsed.data
 
     // Store screenshot in Supabase
     await supabase.from('screenshots').insert({

@@ -9,14 +9,17 @@ interface RouteParams {
 // GET /api/sessions/[id]
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
-    const { id } = await params
-    const { user, supabase } = await getAuthenticatedClient(_request)
+    // Resolve params + auth in parallel — no dependency between them
+    const [{ id }, { user, supabase }] = await Promise.all([
+      params,
+      getAuthenticatedClient(_request),
+    ])
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { data, error } = await supabase
       .from('sessions')
-      .select(`*, flashcards(*), screenshots(*)`)
+      .select(`*, flashcards(*), screenshots(id, created_at)`)
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
@@ -40,12 +43,15 @@ const UpdateSessionSchema = z.object({
 // PUT /api/sessions/[id]
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
-    const { id } = await params
-    const { user, supabase } = await getAuthenticatedClient(request)
+    // Resolve params + auth + body parsing in parallel
+    const [{ id }, { user, supabase }, body] = await Promise.all([
+      params,
+      getAuthenticatedClient(request),
+      request.json(),
+    ])
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await request.json()
     const parsed = UpdateSessionSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
@@ -63,7 +69,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .update(updatePayload)
       .eq('id', id)
       .eq('user_id', user.id)
-      .select()
+      .select('id, title, state, watch_time_seconds, duration_seconds, updated_at')
       .single()
 
     if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -71,9 +77,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
     // When session completes with watch time, update user's free minutes balance
     if (parsed.data.state === 'COMPLETED' && watch_time_seconds !== undefined && watch_time_seconds > 0) {
       const watchMinutes = watch_time_seconds / 60.0
-      await supabase.rpc('increment_free_minutes', {
+      // Fire-and-forget: don't block the response on the RPC call
+      void supabase.rpc('increment_free_minutes', {
         p_user_id: user.id,
         p_minutes: watchMinutes,
+      }).then(({ error }) => {
+        if (error) console.error('[PUT /api/sessions/[id]] increment_free_minutes failed:', error)
       })
     }
 
@@ -87,8 +96,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
 // DELETE /api/sessions/[id]
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
-    const { id } = await params
-    const { user, supabase } = await getAuthenticatedClient(_request)
+    // Resolve params + auth in parallel
+    const [{ id }, { user, supabase }] = await Promise.all([
+      params,
+      getAuthenticatedClient(_request),
+    ])
 
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

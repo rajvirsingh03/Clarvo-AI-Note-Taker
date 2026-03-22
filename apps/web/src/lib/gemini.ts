@@ -9,15 +9,33 @@ const SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ]
 
+// ── Singleton model instance — avoids re-instantiation on every call ──────────
+const _model = genAI.getGenerativeModel({
+  model: 'gemini-2.5-flash-lite',
+  safetySettings: SAFETY_SETTINGS,
+})
+
 /**
- * Get the primary Gemini 2.5 Flash-Lite model for text tasks
+ * Get the primary Gemini 2.5 Flash-Lite model for text tasks.
+ * Returns a cached singleton instead of creating a new instance per call.
  */
 export function getGeminiPro() {
-  return genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash-lite',
-    safetySettings: SAFETY_SETTINGS,
-  })
+  return _model
 }
+
+// ── Top-level static imports — eliminates dynamic import() overhead per call ──
+// These are resolved once at module load time rather than inside hot-path fns.
+import {
+  buildConceptExtractionPrompt,
+  buildFlashcardPrompt,
+  buildActionPlanPrompt,
+  buildQuizPrompt,
+  quizQuestionCount,
+  FREE_TIER_LIMITS as _FREE_TIER_LIMITS,
+} from '@clarvo/utils'
+
+// Re-export so consumers can import from here if needed
+export { _FREE_TIER_LIMITS as FREE_TIER_LIMITS }
 
 /**
  * Extract concepts from a transcript chunk.
@@ -28,8 +46,6 @@ export async function extractConcepts(
   existingNotesTail: string
 ): Promise<string> {
   const model = getGeminiPro()
-  const { buildConceptExtractionPrompt } = await import('@clarvo/utils')
-
   const prompt = buildConceptExtractionPrompt(chunk, existingNotesTail)
   const result = await model.generateContent(prompt)
   return result.response.text()
@@ -41,8 +57,6 @@ export async function extractConcepts(
  */
 export async function generateFlashcards(notes: string): Promise<Array<{ front: string; back: string }>> {
   const model = getGeminiPro()
-  const { buildFlashcardPrompt } = await import('@clarvo/utils')
-
   const prompt = buildFlashcardPrompt(notes)
   const result = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -59,8 +73,6 @@ export async function generateFlashcards(notes: string): Promise<Array<{ front: 
  */
 export async function generateActionPlan(notes: string): Promise<string> {
   const model = getGeminiPro()
-  const { buildActionPlanPrompt } = await import('@clarvo/utils')
-
   const prompt = buildActionPlanPrompt(notes)
   const result = await model.generateContent(prompt)
   return result.response.text()
@@ -113,7 +125,6 @@ export async function generateQuiz(
   notes: string,
   notesHtml: string
 ): Promise<QuizQuestion[]> {
-  const { buildQuizPrompt, quizQuestionCount } = await import('@clarvo/utils')
   const numQuestions = quizQuestionCount(notes)
 
   // Collect image parts from embedded screenshot URLs (up to 5 images to stay within token limits)
@@ -142,5 +153,3 @@ export async function generateQuiz(
   const raw = result.response.text()
   return JSON.parse(raw) as QuizQuestion[]
 }
-
-

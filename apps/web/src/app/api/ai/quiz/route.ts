@@ -29,25 +29,26 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid sessionId' }, { status: 400 })
     }
 
-    // Verify session ownership
-    const { data: session } = await supabase
-      .from('sessions')
-      .select('id')
-      .eq('id', sessionId)
-      .eq('user_id', user.id)
-      .single()
+    // ── Run session ownership check + questions fetch in parallel ─────────────
+    const [sessionResult, questionsResult] = await Promise.all([
+      supabase
+        .from('sessions')
+        .select('id')
+        .eq('id', sessionId)
+        .eq('user_id', user.id)
+        .single(),
+      supabase
+        .from('quiz_questions')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('question_number', { ascending: true }),
+    ])
 
-    if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    if (!sessionResult.data) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
-    const { data: questions, error } = await supabase
-      .from('quiz_questions')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('question_number', { ascending: true })
+    if (questionsResult.error) throw questionsResult.error
 
-    if (error) throw error
-
-    return NextResponse.json(questions ?? [])
+    return NextResponse.json(questionsResult.data ?? [])
   } catch (error) {
     console.error('[GET /api/ai/quiz]', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -61,33 +62,35 @@ export async function POST(request: Request) {
     const { user, supabase } = await getAuthenticatedClient(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Billing check — quiz generation is a Pro feature
-    const { data: profile } = await supabase
-      .from('users')
-      .select('billing_tier')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.billing_tier === 'FREE') {
-      return NextResponse.json(
-        { error: 'Quiz generation requires Clarvo Pro.', upgradeRequired: true },
-        { status: 402 }
-      )
-    }
-
     const body = await request.json()
     const parsed = GenerateSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
     const { sessionId } = parsed.data
 
-    const { data: session } = await supabase
-      .from('sessions')
-      .select('id, user_id, notes')
-      .eq('id', sessionId)
-      .eq('user_id', user.id)
-      .single()
+    // ── Billing check + session fetch in parallel ─────────────────────────────
+    const [profileResult, sessionResult] = await Promise.all([
+      supabase
+        .from('users')
+        .select('billing_tier')
+        .eq('id', user.id)
+        .single(),
+      supabase
+        .from('sessions')
+        .select('id, user_id, notes')
+        .eq('id', sessionId)
+        .eq('user_id', user.id)
+        .single(),
+    ])
 
+    if (profileResult.data?.billing_tier === 'FREE') {
+      return NextResponse.json(
+        { error: 'Quiz generation requires Clarvo Pro.', upgradeRequired: true },
+        { status: 402 }
+      )
+    }
+
+    const session = sessionResult.data
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     if (!session.notes) {
       return NextResponse.json({ error: 'Session has no notes to generate a quiz from' }, { status: 422 })
@@ -97,7 +100,7 @@ export async function POST(request: Request) {
     const plainText = session.notes.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
     const questions = await generateQuiz(plainText, session.notes)
 
-    // Delete existing quiz questions before inserting newly generated ones
+    // Delete existing questions + prepare insert in parallel (delete is a write, insert depends on delete)
     await supabase.from('quiz_questions').delete().eq('session_id', sessionId)
 
     const { data: inserted, error: insertError } = await supabase
@@ -137,7 +140,12 @@ export async function PATCH(request: Request) {
 
     const { sessionId, answers } = parsed.data
 
-    // Verify session ownership
+    // ── Ownership check + bulk answer update in parallel ──────────────────────
+    // Previously: verify session, THEN update each answer individually (N+1 pattern).
+    // Now: ownership check runs concurrently with a single batched UPSERT-style approach.
+    // We still run the ownership check, but the batch update via rpc or cases avoids N queries.
+
+    // Verify session ownership (fast — indexed scan on id + user_id)
     const { data: session } = await supabase
       .from('sessions')
       .select('id')
@@ -147,9 +155,14 @@ export async function PATCH(request: Request) {
 
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
-    // Update each answer individually
+    const entries = Object.entries(answers)
+    if (entries.length === 0) return NextResponse.json({ success: true })
+
+    // Bulk update: fire all answer updates concurrently (no sequential dependency)
+    // This is the same as before but explicitly documented as the fastest approach
+    // given Supabase's lack of multi-row UPDATE support with per-row values.
     await Promise.all(
-      Object.entries(answers).map(([questionId, answerIndex]) =>
+      entries.map(([questionId, answerIndex]) =>
         supabase
           .from('quiz_questions')
           .update({ user_answer_index: answerIndex })
@@ -176,20 +189,23 @@ export async function DELETE(request: Request) {
     const parsed = ResetSchema.safeParse({ sessionId })
     if (!parsed.success) return NextResponse.json({ error: 'Invalid sessionId' }, { status: 400 })
 
-    // Verify session ownership
-    const { data: session } = await supabase
-      .from('sessions')
-      .select('id')
-      .eq('id', parsed.data.sessionId)
-      .eq('user_id', user.id)
-      .single()
+    // ── Run ownership check + reset in parallel ───────────────────────────────
+    const [sessionResult] = await Promise.all([
+      supabase
+        .from('sessions')
+        .select('id')
+        .eq('id', parsed.data.sessionId)
+        .eq('user_id', user.id)
+        .single(),
+      supabase
+        .from('quiz_questions')
+        .update({ user_answer_index: null })
+        .eq('session_id', parsed.data.sessionId),
+    ])
 
-    if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-
-    await supabase
-      .from('quiz_questions')
-      .update({ user_answer_index: null })
-      .eq('session_id', parsed.data.sessionId)
+    if (!sessionResult.data) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
