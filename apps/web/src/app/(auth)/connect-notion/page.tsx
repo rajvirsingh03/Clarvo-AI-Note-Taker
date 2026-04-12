@@ -1,3 +1,4 @@
+import React from 'react'
 import type { Metadata } from 'next'
 import { ConnectNotionButton } from './ConnectNotionButton'
 import { Cards, ChartBar, CheckCircle, NotePencil, Sparkle } from '@/components/phosphor-icons'
@@ -126,12 +127,14 @@ export default async function ConnectNotionPage({ searchParams }: Props) {
             flexDirection: 'column',
             gap: '0.625rem',
           }}>
-            {[
-              [ChartBar, 'Auto-create the "Clarvo AI Workspace" database'],
-              [NotePencil, 'Export structured notes with inline screenshots'],
-              [CheckCircle, 'Action plan as checklist items'],
-              [Cards, 'Flashcards as an organized table'],
-            ].map(([Icon, label]) => (
+            {(
+              [
+                [ChartBar, 'Auto-create the "Clarvo AI Workspace" database'],
+                [NotePencil, 'Export structured notes with inline screenshots'],
+                [CheckCircle, 'Action plan as checklist items'],
+                [Cards, 'Flashcards as an organized table'],
+              ] as [React.ElementType, string][]
+            ).map(([Icon, label]) => (
               <li key={label} style={{
                 display: 'flex',
                 alignItems: 'center',

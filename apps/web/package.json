@@ -24,6 +24,7 @@
     "@supabase/supabase-js": "^2.98.0",
     "jose": "^6.2.1",
     "next": "^15.1.7",
+    "razorpay": "^2.9.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",

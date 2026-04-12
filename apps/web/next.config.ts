@@ -18,11 +18,12 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'", // Required for Next.js inline scripts — tighten post-build
+              "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com", // Required for Next.js and Razorpay checkout
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://*.supabase.co",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+              "img-src 'self' data: blob: https://*.supabase.co https://*.razorpay.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://lumberjack.razorpay.com",
+              "frame-src https://api.razorpay.com https://*.razorpay.com",
               "frame-ancestors 'none'",
             ].join('; '),
           },

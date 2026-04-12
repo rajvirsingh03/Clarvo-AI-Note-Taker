@@ -4,7 +4,6 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import {
   ArrowRight,
-  Calendar,
   Cards,
   CheckCircle,
   Crown,
@@ -253,7 +252,7 @@ export default async function AppDashboardPage() {
                 Unlimited watch time, flashcards, and Notion export.
               </p>
               <Link href="/app/billing" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                Upgrade — $12/mo
+                Upgrade — ₹1,899/mo
               </Link>
             </div>
           )}
